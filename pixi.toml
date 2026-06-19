@@ -1,0 +1,13 @@
+[workspace]
+name = "instanseg-fiji"
+channels = ["conda-forge", "pytorch"]
+platforms = ["linux-64", "osx-arm64", "win-64"]
+
+[dependencies]
+python = ">=3.10,<3.13"
+pytorch = ">=2.1"
+tifffile = ">=2024.1"
+numpy = ">=1.24"
+
+[pypi-dependencies]
+instanseg = ">=0.1.0"
