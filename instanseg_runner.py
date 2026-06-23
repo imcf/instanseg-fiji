@@ -11,9 +11,15 @@ Usage:
                                --pixel-size 0.5
 """
 
-import argparse
 import os
+
+# Fix OpenMP conflict between PyTorch and numpy on Windows (libiomp5md.dll vs libomp.dll)
+# Must be set before any library imports
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
+import argparse
 import sys
+import traceback
 
 
 def _read_and_extract(image_path, channel=1, z_slice=0):
