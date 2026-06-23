@@ -66,16 +66,8 @@ def open_label(path, title):
 
 
 def main():
-    # Scripts are always at <Fiji.app>/scripts/Plugins/InstanSeg/
-    # script_dir = os.path.join(
-    #     IJ.getDirectory("fiji"), "scripts", "Plugins", "InstanSeg"
-    # )
-    # runner_path = os.path.join(script_dir, "instanseg_runner.py")
-
-    runner_path = (
-        r"C:\Tools\Fiji.app-2025-05-06\scripts\Plugins\InstanSeg\instanseg_runner.py"
-    )
-    script_dir = os.path.dirname(runner_path)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    runner_path = os.path.join(script_dir, "instanseg_runner.py")
     IJ.log("InstanSeg: runner path -> " + runner_path)
 
     if not os.path.isfile(runner_path):
@@ -121,10 +113,9 @@ def main():
     tmp_dir = tempfile.mkdtemp(prefix="instanseg_")
     IJ.log("InstanSeg: output dir -> " + tmp_dir)
 
-    # Build the subprocess command
     cmd = [
         python_path,
-        "-u",          # unbuffered stdout/stderr — ensures output reaches the pipe
+        "-u",
         runner_path,
         "--image",
         image_path,
@@ -139,53 +130,68 @@ def main():
         "--device",
         device,
     ]
+
     if pixel_size > 0.0:
         cmd += ["--pixel-size", str(pixel_size)]
 
     IJ.log("InstanSeg: running inference...")
     IJ.log("InstanSeg: cmd -> " + " ".join(cmd))
 
-    # Use Java ProcessBuilder — more reliable than Jython subprocess on Windows
     from java.util import ArrayList
+
     cmd_list = ArrayList()
     for arg in cmd:
         cmd_list.add(arg)
     pb = ProcessBuilder(cmd_list)
     pb.redirectErrorStream(True)  # merge stderr into stdout
+
+    # Prepend the pixi env's DLL directories to PATH so the correct runtime versions
+    # are found before any system DLLs from the moment python.exe starts.
+    env_root = os.path.dirname(python_path)
+    pixi_paths = [
+        os.path.join(env_root, "Library", "bin"),
+        os.path.join(env_root, "Library", "mingw-w64", "bin"),
+        os.path.join(env_root, "Library", "usr", "bin"),
+        env_root,
+    ]
+    pb_env = pb.environment()
+    current_path = pb_env.get("PATH") or ""
+    prepend = os.pathsep.join(p for p in pixi_paths if os.path.isdir(p))
+    pb_env.put("PATH", prepend + os.pathsep + current_path)
     try:
         process = pb.start()
     except Exception as e:
-        IJ.error("InstanSeg", "Failed to start Python process:\n" + str(e) +
-                 "\nPython path: " + python_path)
+        IJ.error(
+            "InstanSeg",
+            "Failed to start Python process:\n"
+            + str(e)
+            + "\nPython path: "
+            + python_path,
+        )
         raise SystemExit("Process start failed")
 
     reader = BufferedReader(InputStreamReader(process.getInputStream(), "UTF-8"))
     output_lines = []
     line = reader.readLine()
     while line is not None:
-        IJ.log("  [runner] " + line)
+        print("[runner] " + line)
         output_lines.append(line)
         line = reader.readLine()
     exit_code = process.waitFor()
 
     if exit_code != 0:
-        IJ.error(
-            "InstanSeg",
-            "Inference failed (exit code "
+        print(
+            "[runner] FAILED with exit code: "
             + str(exit_code)
-            + ").\nCheck the Fiji log for details.",
+            + " (0x{:08X})".format(exit_code & 0xFFFFFFFF)
         )
-        raise SystemExit("Runner failed")
-
-    stdout_str = "\n".join(output_lines)
+        raise SystemExit("Runner failed (exit code " + str(exit_code) + ")")
 
     # Parse the label file paths printed by the runner
     nuclei_path = None
     cells_path = None
     labels_path = None
-
-    # We could go by the file name after saving, but we can grab the stdout directly
-    for line in stdout_str.splitlines():
+    for line in output_lines:
         if line.startswith("NUCLEI_LABELS:"):
             nuclei_path = line[len("NUCLEI_LABELS:") :]
         elif line.startswith("CELL_LABELS:"):
@@ -193,7 +199,6 @@ def main():
         elif line.startswith("LABELS:"):
             labels_path = line[len("LABELS:") :]
 
-    # Open label images
     if nuclei_path and cells_path:
         open_label(nuclei_path, "Nuclei labels")
         open_label(cells_path, "Cell labels")
@@ -201,10 +206,11 @@ def main():
         open_label(labels_path, "Labels")
     else:
         IJ.error(
-            "InstanSeg", "No label images returned.\nCheck the Fiji log for details."
+            "InstanSeg",
+            "No label images returned.\nCheck the Script Editor console for details.",
         )
 
-    IJ.log("InstanSeg: done.")
+    print("InstanSeg: done.")
 
 
 if __name__ == "__main__":

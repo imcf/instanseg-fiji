@@ -124,44 +124,63 @@ def main():
         help="Device to run inference on: cpu, cuda, or mps (default: cpu).",
     )
     args = parser.parse_args()
+    print("[DEBUG] args: image={} model={} channel={} z_slice={} device={} pixel_size={}".format(
+        args.image, args.model, args.channel, args.z_slice, args.device, args.pixel_size))
 
+    # Prevent PyTorch from scanning/initialising CUDA when running on CPU.
+    # Without this, torch import can hang on Windows when CUDA drivers are present.
+    if args.device == "cpu":
+        os.environ["CUDA_VISIBLE_DEVICES"] = ""
+        print("[DEBUG] CUDA disabled (cpu mode)")
+
+    print("[DEBUG] importing instanseg...")
     try:
         from instanseg import InstanSeg
-    except ImportError:
-        print(
-            "ERROR: instanseg package not found in this Python environment.",
-            file=sys.stderr,
-        )
+        print("[DEBUG] instanseg OK")
+    except Exception:
+        print("ERROR: instanseg import failed:")
+        print(traceback.format_exc())
         sys.exit(1)
 
+    print("[DEBUG] importing tifffile...")
     try:
         import tifffile
-    except ImportError:
-        print(
-            "ERROR: tifffile not found. Install it with: pip install tifffile",
-            file=sys.stderr,
-        )
+        print("[DEBUG] tifffile OK")
+    except Exception:
+        print("ERROR: tifffile import failed:")
+        print(traceback.format_exc())
         sys.exit(1)
 
+    print("[DEBUG] importing bioio_bioformats...")
     try:
-        import bioio_bioformats  # noqa: F401 – validate before model load
-    except ImportError:
-        print(
-            "ERROR: bioio-bioformats not found. "
-            "Install it with: pip install bioio-bioformats",
-            file=sys.stderr,
-        )
+        import bioio_bioformats  # noqa: F401
+        print("[DEBUG] bioio_bioformats OK")
+    except Exception:
+        print("ERROR: bioio_bioformats import failed:")
+        print(traceback.format_exc())
         sys.exit(1)
 
     os.makedirs(args.output_dir, exist_ok=True)
 
-    print("Loading model: {} on device: {}".format(args.model, args.device))
-    instanseg = InstanSeg(args.model, verbosity=1, device=args.device)
+    print("[DEBUG] loading model...")
+    try:
+        instanseg = InstanSeg(args.model, verbosity=1, device=args.device)
+        print("[DEBUG] model loaded OK")
+    except Exception:
+        print("ERROR: model loading failed:")
+        print(traceback.format_exc())
+        sys.exit(1)
 
-    print("Reading image: {}".format(args.image))
-    image_array, pixel_size = _read_and_extract(
-        args.image, channel=args.channel, z_slice=args.z_slice
-    )
+    print("[DEBUG] reading image...")
+    try:
+        image_array, pixel_size = _read_and_extract(
+            args.image, channel=args.channel, z_slice=args.z_slice
+        )
+        print("[DEBUG] image read OK, shape={} dtype={}".format(image_array.shape, image_array.dtype))
+    except Exception:
+        print("ERROR: image reading failed:")
+        print(traceback.format_exc())
+        sys.exit(1)
 
     # Allow explicit pixel size override (useful when metadata is missing)
     if args.pixel_size is not None:
@@ -172,9 +191,14 @@ def main():
     else:
         print("WARNING: pixel size unknown, proceeding without rescaling")
 
-    print("Running inference...")
-    instances, _ = instanseg.eval_small_image(image_array, pixel_size)
-    # instances shape: (1, C, H, W)  C=2 for nuclei+cells, C=1 for single output
+    print("[DEBUG] running inference...")
+    try:
+        instances, _ = instanseg.eval_small_image(image_array, pixel_size)
+        print("[DEBUG] inference OK, output shape={}".format(instances.shape))
+    except Exception:
+        print("ERROR: inference failed:")
+        print(traceback.format_exc())
+        sys.exit(1)
 
     base = os.path.splitext(os.path.basename(args.image))[0]
     n_outputs = instances.shape[1]
