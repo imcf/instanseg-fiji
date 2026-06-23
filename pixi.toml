@@ -1,13 +1,41 @@
-[workspace]
+[project]
 name = "instanseg-fiji"
-channels = ["conda-forge", "pytorch"]
-platforms = ["linux-64", "osx-arm64", "win-64"]
+channels = ["conda-forge"]
+platforms = ["linux-64", "win-64"]
 
 [dependencies]
-python = ">=3.10,<3.13"
-pytorch = ">=2.1"
-tifffile = ">=2024.1"
-numpy = ">=1.24"
+python = "3.11.*"
+numpy = "*"
+scipy = "*"
+scikit-image = "*"
+pandas = "*"
+tifffile = "*"
+napari = "*"
+pyqt = "*"
+jupyter = "*"
+jupyterlab = "*"
+ipykernel = "*"
+roifile = "*"
+
+[pypi-options]
+# # PyTorch CUDA wheels — pick the URL matching your CUDA version from nvidia-smi:
+# #   CUDA 12.8:  https://download.pytorch.org/whl/cu128
+# #   CUDA 12.6:  https://download.pytorch.org/whl/cu126
+# #   CUDA 12.4:  https://download.pytorch.org/whl/cu124
+# #   CUDA 11.8:  https://download.pytorch.org/whl/cu118
+extra-index-urls = ["https://download.pytorch.org/whl/cu118"]
 
 [pypi-dependencies]
-instanseg = ">=0.1.0"
+bioio-nd2 = "*"
+bioio-tifffile = "*"
+bioio-bioformats = "*"
+bioio = "*"
+customtkinter = "*"
+instanseg-torch = "*"
+# torch = ">=2.0"
+# torchvision = "*"
+# torchaudio = "*"
+colorama = "*"
+torch = { version = "*", index = "https://download.pytorch.org/whl/cu118" }
+torchvision = { version = "*", index = "https://download.pytorch.org/whl/cu118" }
+scikit-image = "*"
