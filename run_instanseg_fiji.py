@@ -66,7 +66,7 @@ def open_label(path, title):
 
 
 def main():
-    script_dir = os.path.dirname(os.path.abspath(__file__))
+    script_dir = os.path.join(IJ.getDirectory("plugins"), "InstanSeg")
     runner_path = os.path.join(script_dir, "instanseg_runner.py")
     IJ.log("InstanSeg: runner path -> " + runner_path)
 
