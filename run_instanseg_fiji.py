@@ -5,6 +5,7 @@
 # @ Integer(label="Channel (1-based, 0 = all channels)", value=1) seg_channel
 # @ Integer(label="Z-slice (1-based, 0 = max projection)", value=0) seg_z_slice
 # @ String(label="Device", value="cpu", choices={"cpu", "cuda", "mps"}) device
+# @ String(label="Output labels", value="nuclei_and_cells", choices={"nuclei_and_cells", "nuclei_only", "cells_only"}) output_type
 # @ String(label="Environment path (leave blank for bundled pixi env)", value="") env_path_override
 
 """
@@ -15,7 +16,7 @@ bundled alongside this script. Run install.sh (Linux/Mac) or install.bat (Window
 before using this plugin to set up the environment.
 
 Place the entire InstanSeg/ folder in:
-  Fiji.app/scripts/Plugins/
+  Fiji.app/plugins/InstanSeg/
 """
 
 import os
@@ -25,37 +26,38 @@ from ij import IJ
 from java.lang import ProcessBuilder
 from java.io import BufferedReader, InputStreamReader
 
-# To ignore Code warnings, we renew the variables
+# Renew SciJava parameter variables to suppress Jython name warnings
 image_path = str(image_path).strip()
-pixel_size = pixel_size
-model_type = model_type
-seg_channel = seg_channel
-seg_z_slice = seg_z_slice
+pixel_size = float(pixel_size)
+model_type = str(model_type)
+seg_channel = int(seg_channel)
+seg_z_slice = int(seg_z_slice)
 device = str(device)
-env_path_override = env_path_override.strip()
+output_type = str(output_type)
+env_path_override = str(env_path_override).strip()
 
 
 def find_python(env_root):
-    """Find the Python executable in the given environment root directory."""
-    candidate_paths = [
-        os.path.join(env_root, "bin", "python"),  # pixi/conda Linux & Mac
+    for candidate in [
+        os.path.join(env_root, "bin", "python"),
         os.path.join(env_root, "bin", "python3"),
-        os.path.join(env_root, "Scripts", "python.exe"),  # pixi Windows
+        os.path.join(env_root, "Scripts", "python.exe"),
         os.path.join(env_root, "python.exe"),
-    ]
-    for c in candidate_paths:
-        if os.path.isfile(c):
-            return c
+    ]:
+        if os.path.isfile(candidate):
+            return candidate
     return None
 
 
 def find_pixi_python(script_dir):
-    """Locate the Python bundled in the pixi env next to this script."""
     pixi_env = os.path.join(script_dir, ".pixi", "envs", "default")
     return find_python(pixi_env)
 
 
-def open_label(path, title):
+def open_label_with_rois(path, title, roi_prefix):
+    """Open a label TIFF, apply a colour LUT, and convert labels to ROIs via MorphoLibJ."""
+    from ij.plugin.frame import RoiManager
+
     label_imp = IJ.openImage(path)
     if label_imp is None:
         IJ.log("InstanSeg: WARNING - could not open " + path)
@@ -64,11 +66,36 @@ def open_label(path, title):
     IJ.run(label_imp, "16 colors", "")
     label_imp.show()
 
+    rm = RoiManager.getInstance()
+    count_before = rm.getCount() if rm is not None else 0
+
+    try:
+        IJ.run(label_imp, "Label image to ROIs", "")
+    except Exception as e:
+        IJ.log(
+            "InstanSeg: MorphoLibJ not available, skipping ROI conversion ("
+            + str(e)
+            + ")"
+        )
+        print("MorphoLibJ error: " + str(e))
+        return
+
+    rm = RoiManager.getInstance()
+    if rm is None:
+        return
+    count_after = rm.getCount()
+    for i in range(count_before, count_after):
+        rm.getRoi(i).setName(roi_prefix + "_" + str(i - count_before + 1))
+    IJ.log(
+        "InstanSeg: {} {} ROIs added to ROI Manager".format(
+            count_after - count_before, roi_prefix
+        )
+    )
+
 
 def main():
     script_dir = os.path.join(IJ.getDirectory("plugins"), "InstanSeg")
     runner_path = os.path.join(script_dir, "instanseg_runner.py")
-    IJ.log("InstanSeg: runner path -> " + runner_path)
 
     if not os.path.isfile(runner_path):
         IJ.error(
@@ -76,43 +103,53 @@ def main():
         )
         raise SystemExit("instanseg_runner.py not found")
 
-    # Find python executable — explicit override takes priority, else use bundled pixi env
+    # --- Resolve Python executable ---
     if env_path_override:
         python_path = find_python(env_path_override)
         if python_path is None:
             IJ.error(
-                "InstanSeg",
-                "No Python executable found in the provided path:\n"
-                + env_path_override,
+                "InstanSeg", "No Python executable found in:\n" + env_path_override
             )
             raise SystemExit("Python not found in provided environment")
-        IJ.log("InstanSeg: using Python at " + python_path + " (from override)")
     else:
         python_path = find_pixi_python(script_dir)
         if python_path is None:
             IJ.error(
                 "InstanSeg",
                 "No Python executable found in the bundled pixi environment.\n"
-                "Please run install.sh (Linux/Mac) or install.bat (Windows)\n"
-                "from the InstanSeg plugin folder first.\n"
+                "Please run install.sh / install.bat from the InstanSeg plugin folder first.\n"
                 "Expected env at: "
                 + os.path.join(script_dir, ".pixi", "envs", "default"),
             )
             raise SystemExit("Python not found in pixi environment")
-        IJ.log("InstanSeg: using Python at " + python_path)
 
-    # Open the original image in Fiji
-    IJ.log("InstanSeg: opening image: " + image_path)
+    print("python: " + python_path)
+    print("runner: " + runner_path)
+
+    # --- Open the image in Fiji ---
+    IJ.log("InstanSeg: opening " + os.path.basename(image_path))
     imp = IJ.openImage(image_path)
     if imp is None:
         IJ.error("InstanSeg", "Could not open image:\n" + image_path)
         raise SystemExit("Could not open image")
     imp.show()
 
-    # Create a temp directory for the label TIFFs
-    tmp_dir = tempfile.mkdtemp(prefix="instanseg_")
-    IJ.log("InstanSeg: output dir -> " + tmp_dir)
+    # --- Resolve pixel size ---
+    # Priority: dialog value > Fiji calibration > let the runner read from metadata
+    effective_pixel_size = pixel_size
+    if effective_pixel_size == 0.0:
+        cal = imp.getCalibration()
+        unit = cal.getUnit().lower() if cal.getUnit() else ""
+        if cal.scaled() and unit in ("um", "µm", "micron", "microns"):
+            effective_pixel_size = cal.pixelWidth
+            print(
+                "pixel size from Fiji calibration: {} um/px".format(
+                    effective_pixel_size
+                )
+            )
 
+    # --- Build subprocess command ---
+    tmp_dir = tempfile.mkdtemp(prefix="instanseg_")
     cmd = [
         python_path,
         "-u",
