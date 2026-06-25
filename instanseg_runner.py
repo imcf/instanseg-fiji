@@ -6,7 +6,8 @@ Usage:
     python instanseg_runner.py --image /path/to/image.tif \
                                --output-dir /tmp/instanseg_out \
                                --model fluorescence_nuclei_and_cells \
-                               --channel 1 \
+                               --nuclei-channel 1 \
+                               --cells-channel 2 \
                                --z-slice 0 \
                                --pixel-size 0.5
 """
