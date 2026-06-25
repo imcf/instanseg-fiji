@@ -166,88 +166,102 @@ def main():
         str(seg_z_slice),
         "--device",
         device,
+        "--output-type",
+        output_type,
     ]
+    if effective_pixel_size > 0.0:
+        cmd += ["--pixel-size", str(effective_pixel_size)]
 
-    if pixel_size > 0.0:
-        cmd += ["--pixel-size", str(pixel_size)]
+    print("cmd: " + " ".join(cmd))
+    IJ.log(
+        "InstanSeg: running inference  [model={}, device={}, output={}]".format(
+            model_type, device, output_type
+        )
+    )
 
-    IJ.log("InstanSeg: running inference...")
-    IJ.log("InstanSeg: cmd -> " + " ".join(cmd))
-
+    # --- Launch subprocess ---
     from java.util import ArrayList
 
     cmd_list = ArrayList()
     for arg in cmd:
         cmd_list.add(arg)
-    pb = ProcessBuilder(cmd_list)
-    pb.redirectErrorStream(True)  # merge stderr into stdout
 
-    # Prepend the pixi env's DLL directories to PATH so the correct runtime versions
-    # are found before any system DLLs from the moment python.exe starts.
+    pb = ProcessBuilder(cmd_list)
+    pb.redirectErrorStream(True)
+
+    # Prepend pixi env DLL directories so the correct native library versions are
+    # found before any system DLLs the moment python.exe starts (Windows).
     env_root = os.path.dirname(python_path)
+    pb_env = pb.environment()
+    current_path = pb_env.get("PATH") or ""
     pixi_paths = [
         os.path.join(env_root, "Library", "bin"),
         os.path.join(env_root, "Library", "mingw-w64", "bin"),
         os.path.join(env_root, "Library", "usr", "bin"),
         env_root,
     ]
-    pb_env = pb.environment()
-    current_path = pb_env.get("PATH") or ""
     prepend = os.pathsep.join(p for p in pixi_paths if os.path.isdir(p))
     pb_env.put("PATH", prepend + os.pathsep + current_path)
+
     try:
         process = pb.start()
     except Exception as e:
-        IJ.error(
-            "InstanSeg",
-            "Failed to start Python process:\n"
-            + str(e)
-            + "\nPython path: "
-            + python_path,
-        )
+        IJ.error("InstanSeg", "Failed to start Python process:\n" + str(e))
         raise SystemExit("Process start failed")
 
+    # --- Stream output: INFO: lines -> Fiji Log, everything else -> console ---
     reader = BufferedReader(InputStreamReader(process.getInputStream(), "UTF-8"))
     output_lines = []
     line = reader.readLine()
     while line is not None:
-        print("[runner] " + line)
+        if line.startswith("INFO:"):
+            IJ.log("InstanSeg: " + line[5:])
+        elif not (
+            line.startswith("NUCLEI_LABELS:")
+            or line.startswith("CELL_LABELS:")
+            or line.startswith("LABELS:")
+        ):
+            print(line)
         output_lines.append(line)
         line = reader.readLine()
     exit_code = process.waitFor()
 
     if exit_code != 0:
         print(
-            "[runner] FAILED with exit code: "
-            + str(exit_code)
-            + " (0x{:08X})".format(exit_code & 0xFFFFFFFF)
+            "FAILED with exit code: {} (0x{:08X})".format(
+                exit_code, exit_code & 0xFFFFFFFF
+            )
         )
-        raise SystemExit("Runner failed (exit code " + str(exit_code) + ")")
+        raise SystemExit("Runner failed (exit code {})".format(exit_code))
 
-    # Parse the label file paths printed by the runner
+    # --- Parse label paths from runner output ---
     nuclei_path = None
     cells_path = None
-    labels_path = None
     for line in output_lines:
         if line.startswith("NUCLEI_LABELS:"):
             nuclei_path = line[len("NUCLEI_LABELS:") :]
         elif line.startswith("CELL_LABELS:"):
             cells_path = line[len("CELL_LABELS:") :]
-        elif line.startswith("LABELS:"):
-            labels_path = line[len("LABELS:") :]
 
-    if nuclei_path and cells_path:
-        open_label(nuclei_path, "Nuclei labels")
-        open_label(cells_path, "Cell labels")
-    elif labels_path:
-        open_label(labels_path, "Labels")
-    else:
+    if not nuclei_path and not cells_path:
         IJ.error(
-            "InstanSeg",
-            "No label images returned.\nCheck the Script Editor console for details.",
+            "InstanSeg", "No label images returned.\nCheck the Script Editor console."
         )
+        raise SystemExit("No labels returned")
 
-    print("InstanSeg: done.")
+    # --- Open labels and convert to ROIs ---
+    if nuclei_path:
+        open_label_with_rois(nuclei_path, "Nuclei labels", "nucleus")
+    if cells_path:
+        open_label_with_rois(cells_path, "Cell labels", "cell")
+
+    from ij.plugin.frame import RoiManager
+
+    rm = RoiManager.getInstance()
+    if rm is not None:
+        rm.setVisible(True)
+
+    IJ.log("InstanSeg: finished.")
 
 
 if __name__ == "__main__":
