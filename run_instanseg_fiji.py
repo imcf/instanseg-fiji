@@ -1,11 +1,12 @@
 # @ String (visibility=MESSAGE, value="<html><b> Fiji plugin for InstanSeg</b></html>") msg1
-# @ String(label="Image path", style="open", value="") image_path
+# @ String(label="Image path", style="directory", value="") image_path
+# @ File(label="Results folder", style="directory") results_dir
 # @ String(label="Model", value="fluorescence_nuclei_and_cells", choices={"fluorescence_nuclei_and_cells", "brightfield_nuclei"}) model_type
 # @ Double(label="Pixel size (um/px, 0 = read from metadata)", value=0.0) pixel_size
-# @ Integer(label="Channel (1-based, 0 = all channels)", value=1) seg_channel
+# @ Integer(label="Nuclei channel (1-based, 0 = skip)", value=1) nuclei_channel
+# @ Integer(label="Cells channel (1-based, 0 = skip)", value=1) cells_channel
 # @ Integer(label="Z-slice (1-based, 0 = max projection)", value=0) seg_z_slice
 # @ String(label="Device", value="cpu", choices={"cpu", "cuda", "mps"}) device
-# @ String(label="Output labels", value="nuclei_and_cells", choices={"nuclei_and_cells", "nuclei_only", "cells_only"}) output_type
 # @ String(label="Environment path (leave blank for bundled pixi env)", value="") env_path_override
 
 """
