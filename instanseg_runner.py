@@ -22,200 +22,197 @@ import sys
 import traceback
 
 
-def _read_and_extract(image_path, channel=1, z_slice=0):
-    """Read an image with bioio-bioformats and extract a single channel and Z plane.
+def info(msg):
+    """User-facing message — routed to the Fiji Log by the Jython caller."""
+    print("INFO:" + msg)
+    sys.stdout.flush()
 
-    Parameters
-    ----------
-    channel : int
-        1-based channel index. 0 = keep all channels.
-    z_slice : int
-        1-based Z-slice index. 0 = max-project across all Z.
 
-    Returns
-    -------
-    image_array : np.ndarray
-        Shape (H, W) for single channel or (C, H, W) for all channels.
-    pixel_size : float or None
-        Physical pixel size in microns (X axis), or None if not in metadata.
+def debug(msg):
+    """Developer/diagnostic message — goes to the Script Editor console."""
+    print("[DEBUG] " + msg)
+    sys.stdout.flush()
+
+
+def _prepare_input(image_path, nuclei_ch, cells_ch, z_slice=0):
+    """Read image and build the array to pass to InstanSeg.
+
+    - nuclei_ch / cells_ch: 1-based channel indices. 0 means skip that output.
+    - If both are the same non-zero value: one channel → (H, W).
+    - If they differ and both non-zero: stack them → (2, H, W) so InstanSeg can
+      use both (nuclear marker + cell marker) simultaneously.
+    - If only one is non-zero: single channel → (H, W).
+
+    Returns (image_array, pixel_size_um).
     """
     import numpy as np
     from bioio import BioImage
     import bioio_bioformats
 
     img = BioImage(image_path, reader=bioio_bioformats.Reader)
-    pixel_size = img.physical_pixel_sizes.X  # may be None
+    pixel_size = img.physical_pixel_sizes.X  # µm/px, may be None
 
-    # get_image_data returns a numpy array with axes CZYX
-    data = img.get_image_data("CZYX")
+    data = img.get_image_data("CZYX")  # (C, Z, Y, X)
     n_channels, n_z = data.shape[0], data.shape[1]
 
-    # --- channel selection ---
-    if channel == 0:
-        selected = data  # (C, Z, Y, X)
-        print("Using all {} channel(s)".format(n_channels))
-    else:
-        if channel > n_channels:
+    def extract(ch):
+        if ch > n_channels:
             raise ValueError(
                 "Channel {} requested but image only has {} channel(s)".format(
-                    channel, n_channels
+                    ch, n_channels
                 )
             )
-        selected = data[channel - 1 : channel]  # (1, Z, Y, X)
-        print("Using channel {}".format(channel))
+        plane = data[ch - 1]  # (Z, Y, X)
+        if z_slice == 0:
+            result = plane.max(axis=0)
+            debug("Channel {}: max-projecting {} Z-slices".format(ch, n_z))
+        else:
+            if z_slice > n_z:
+                raise ValueError(
+                    "Z-slice {} requested but image only has {} Z-slices".format(
+                        z_slice, n_z
+                    )
+                )
+            result = plane[z_slice - 1]
+            debug("Channel {}: using Z-slice {}".format(ch, z_slice))
+        return result  # (H, W)
 
-    # --- Z selection ---
-    if z_slice == 0:
-        image_array = selected.max(axis=1)  # max projection -> (C, Y, X)
-        print("Max-projecting {} Z-slice(s)".format(n_z))
+    slices = []
+    if nuclei_ch > 0:
+        slices.append(extract(nuclei_ch))
+        debug("Nuclei input: channel {}".format(nuclei_ch))
+    if cells_ch > 0 and cells_ch != nuclei_ch:
+        slices.append(extract(cells_ch))
+        debug("Cells input: channel {}".format(cells_ch))
+
+    if len(slices) == 1:
+        return slices[0], pixel_size          # (H, W)
     else:
-        if z_slice > n_z:
-            raise ValueError(
-                "Z-slice {} requested but image only has {} Z-slice(s)".format(
-                    z_slice, n_z
-                )
-            )
-        image_array = selected[:, z_slice - 1, :, :]  # (C, Y, X)
-        print("Using Z-slice {}".format(z_slice))
-
-    return image_array.squeeze(), pixel_size
+        return np.stack(slices, axis=0), pixel_size  # (2, H, W)
 
 
 def main():
-    print("Running InstanSeg inference script")
     parser = argparse.ArgumentParser(
         description="Run InstanSeg inference on a single image."
     )
-    parser.add_argument("--image", required=True, help="Path to the input image")
+    parser.add_argument("--image", required=True)
+    parser.add_argument("--output-dir", required=True, dest="output_dir")
+    parser.add_argument("--model", default="fluorescence_nuclei_and_cells")
+    parser.add_argument("--pixel-size", type=float, default=None, dest="pixel_size")
     parser.add_argument(
-        "--output-dir",
-        required=True,
-        dest="output_dir",
-        help="Directory to write label TIFF(s) into",
+        "--nuclei-channel", type=int, default=1, dest="nuclei_channel",
+        help="1-based input channel for nuclei. 0 = do not output nuclei labels.",
     )
     parser.add_argument(
-        "--model",
-        default="fluorescence_nuclei_and_cells",
-        help="InstanSeg model name (default: fluorescence_nuclei_and_cells)",
+        "--cells-channel", type=int, default=1, dest="cells_channel",
+        help="1-based input channel for cells. 0 = do not output cell labels.",
     )
-    parser.add_argument(
-        "--pixel-size",
-        type=float,
-        default=None,
-        dest="pixel_size",
-        help="Pixel size in microns. If not provided, read from image metadata.",
-    )
-    parser.add_argument(
-        "--channel",
-        type=int,
-        default=1,
-        help="1-based channel index to segment. 0 = use all channels (default: 1).",
-    )
-    parser.add_argument(
-        "--z-slice",
-        type=int,
-        default=0,
-        dest="z_slice",
-        help="1-based Z-slice index to segment. 0 = max projection across all Z (default: 0).",
-    )
-    parser.add_argument(
-        "--device",
-        default="cpu",
-        help="Device to run inference on: cpu, cuda, or mps (default: cpu).",
-    )
+    parser.add_argument("--z-slice", type=int, default=0, dest="z_slice")
+    parser.add_argument("--device", default="cpu")
     args = parser.parse_args()
-    print("[DEBUG] args: image={} model={} channel={} z_slice={} device={} pixel_size={}".format(
-        args.image, args.model, args.channel, args.z_slice, args.device, args.pixel_size))
 
-    # Prevent PyTorch from scanning/initialising CUDA when running on CPU.
-    # Without this, torch import can hang on Windows when CUDA drivers are present.
+    debug("args: image={} model={} nuclei_ch={} cells_ch={} z_slice={} device={} pixel_size={}".format(
+        args.image, args.model, args.nuclei_channel, args.cells_channel,
+        args.z_slice, args.device, args.pixel_size))
+
+    if args.nuclei_channel == 0 and args.cells_channel == 0:
+        print("ERROR: both --nuclei-channel and --cells-channel are 0, nothing to do")
+        sys.exit(1)
+
     if args.device == "cpu":
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
-        print("[DEBUG] CUDA disabled (cpu mode)")
+        debug("CUDA disabled (cpu mode)")
 
-    print("[DEBUG] importing instanseg...")
+    info("Image: " + os.path.basename(args.image))
+    info("Model: " + args.model + "  |  Device: " + args.device)
+
+    debug("importing instanseg...")
     try:
         from instanseg import InstanSeg
-        print("[DEBUG] instanseg OK")
+        debug("instanseg OK")
     except Exception:
-        print("ERROR: instanseg import failed:")
-        print(traceback.format_exc())
+        print("ERROR: instanseg import failed:\n" + traceback.format_exc())
         sys.exit(1)
 
-    print("[DEBUG] importing tifffile...")
+    debug("importing tifffile / bioio...")
     try:
         import tifffile
-        print("[DEBUG] tifffile OK")
-    except Exception:
-        print("ERROR: tifffile import failed:")
-        print(traceback.format_exc())
-        sys.exit(1)
-
-    print("[DEBUG] importing bioio_bioformats...")
-    try:
         import bioio_bioformats  # noqa: F401
-        print("[DEBUG] bioio_bioformats OK")
+        debug("imports OK")
     except Exception:
-        print("ERROR: bioio_bioformats import failed:")
-        print(traceback.format_exc())
+        print("ERROR: import failed:\n" + traceback.format_exc())
         sys.exit(1)
 
     os.makedirs(args.output_dir, exist_ok=True)
 
-    print("[DEBUG] loading model...")
+    info("Loading model...")
     try:
-        instanseg = InstanSeg(args.model, verbosity=1, device=args.device)
-        print("[DEBUG] model loaded OK")
+        instanseg = InstanSeg(args.model, verbosity=0, device=args.device)
+        debug("model loaded OK")
     except Exception:
-        print("ERROR: model loading failed:")
-        print(traceback.format_exc())
+        print("ERROR: model loading failed:\n" + traceback.format_exc())
         sys.exit(1)
 
-    print("[DEBUG] reading image...")
+    info("Reading image...")
     try:
-        image_array, pixel_size = _read_and_extract(
-            args.image, channel=args.channel, z_slice=args.z_slice
+        image_array, pixel_size = _prepare_input(
+            args.image, args.nuclei_channel, args.cells_channel, args.z_slice
         )
-        print("[DEBUG] image read OK, shape={} dtype={}".format(image_array.shape, image_array.dtype))
+        debug("image shape={} dtype={}".format(image_array.shape, image_array.dtype))
     except Exception:
-        print("ERROR: image reading failed:")
-        print(traceback.format_exc())
+        print("ERROR: image reading failed:\n" + traceback.format_exc())
         sys.exit(1)
 
-    # Allow explicit pixel size override (useful when metadata is missing)
+    # Pixel size: CLI arg > bioio metadata > warn
     if args.pixel_size is not None:
         pixel_size = args.pixel_size
-        print("Using provided pixel size: {} um/px".format(pixel_size))
+        info("Pixel size: {} um/px (from dialog)".format(pixel_size))
     elif pixel_size is not None:
-        print("Pixel size from metadata: {} um/px".format(pixel_size))
+        info("Pixel size: {} um/px (from metadata)".format(pixel_size))
     else:
-        print("WARNING: pixel size unknown, proceeding without rescaling")
+        info("WARNING: pixel size unknown — proceeding without rescaling")
 
-    print("[DEBUG] running inference...")
+    info("Running inference...")
     try:
         instances, _ = instanseg.eval_small_image(image_array, pixel_size)
-        print("[DEBUG] inference OK, output shape={}".format(instances.shape))
+        debug("inference OK, output shape={}".format(instances.shape))
     except Exception:
-        print("ERROR: inference failed:")
-        print(traceback.format_exc())
+        print("ERROR: inference failed:\n" + traceback.format_exc())
         sys.exit(1)
 
-    base = os.path.splitext(os.path.basename(args.image))[0]
     n_outputs = instances.shape[1]
+    has_nuclei = n_outputs >= 1 and bool(instances[0, 0].any().item())
+    has_cells  = n_outputs >= 2 and bool(instances[0, 1].any().item())
 
-    if n_outputs >= 2:
+    save_nuclei = args.nuclei_channel > 0 and has_nuclei
+    save_cells  = args.cells_channel  > 0 and has_cells
+
+    if args.nuclei_channel > 0 and not has_nuclei:
+        info("WARNING: no nuclei detected in model output")
+    if args.cells_channel > 0 and not has_cells:
+        info("WARNING: no cells detected in model output")
+
+    base = os.path.splitext(os.path.basename(args.image))[0]
+
+    if save_nuclei:
+        n_nuclei = int(instances[0, 0].max().item())
         nuclei_path = os.path.join(args.output_dir, base + "_nuclei_labels.tif")
-        cells_path = os.path.join(args.output_dir, base + "_cell_labels.tif")
         tifffile.imwrite(nuclei_path, instances[0, 0].numpy().astype("uint16"))
-        tifffile.imwrite(cells_path, instances[0, 1].numpy().astype("uint16"))
+        info("Nuclei detected: {}".format(n_nuclei))
         print("NUCLEI_LABELS:{}".format(nuclei_path))
-        print("CELL_LABELS:{}".format(cells_path))
-    else:
-        labels_path = os.path.join(args.output_dir, base + "_labels.tif")
-        tifffile.imwrite(labels_path, instances[0, 0].numpy().astype("uint16"))
-        print("LABELS:{}".format(labels_path))
 
-    print("Done.")
+    if save_cells:
+        n_cells = int(instances[0, 1].max().item())
+        cells_path = os.path.join(args.output_dir, base + "_cell_labels.tif")
+        tifffile.imwrite(cells_path, instances[0, 1].numpy().astype("uint16"))
+        info("Cells detected: {}".format(n_cells))
+        print("CELL_LABELS:{}".format(cells_path))
+
+    if not save_nuclei and not save_cells:
+        print("ERROR: nothing to save — check channel settings and model compatibility")
+        sys.exit(1)
+
+    info("Done.")
 
 
 if __name__ == "__main__":
