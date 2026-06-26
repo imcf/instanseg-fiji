@@ -71,10 +71,10 @@ The plugin uses [pixi](https://prefix.dev/) to manage a self-contained Python en
 | **Nuclei channel** | 1-based channel index of the nuclear marker (e.g. DAPI). Set to `0` to skip nuclei output. |
 | **Cells channel** | 1-based channel index of the cell body/membrane marker. Set to `0` to skip cell output. Set equal to Nuclei channel to use the same channel for both. |
 | **Z-slice** | `0` = max-project across all Z-slices (default). Any other value selects that specific Z-slice (1-based). |
-| **Device** | `cpu` (always works), `cuda` (NVIDIA GPU), or `mps` (Apple Silicon). CUDA requires a compatible GPU and the CUDA 11.8 toolkit. |
+| **Device** | `cpu` (always works) or `cuda` (NVIDIA GPU). CUDA requires a compatible GPU and the corresponding CUDA toolkit. The pixi environment install 11.8 by default. |
 | **Environment path** | Leave blank to use the bundled pixi environment. Set to the root of a custom conda/pixi environment if you want to use your own. |
 
-1. Click **OK**. Progress is shown in the **Fiji Log** window. After inference:
+1. Click **OK**. Progress is shown in the **Fiji Log** window (The *console* has more detailed debug outputs). After inference:
    - The input image is opened in Fiji.
    - Label images (`_nuclei_labels.tif`, `_cell_labels.tif`) are saved to the results folder and opened with a 16-colour LUT.
    - ROIs are added to the **ROI Manager** (named `nucleus_roi_1`, `nucleus_roi_2`, … / `cell_roi_1`, …).
