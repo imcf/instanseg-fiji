@@ -4,6 +4,10 @@ A thin wrapper around [InstanSeg](https://github.com/instanseg) (Goldsborough et
 
 ---
 
+This plugin was developed by Rohan Girish (r.rohangirish@unibas.ch) at the Imaging Core Facility (IMCF) of the University of Basel.
+
+---
+
 ## Requirements
 
 ### Fiji update sites
@@ -12,7 +16,6 @@ Open **Help → Update… → Manage update sites** and make sure the following 
 
 | Name | URL |
 | --- | --- |
-| Fiji (default) | `https://update.fiji.sc/` |
 | IJPB-plugins (MorphoLibJ) | `https://sites.imagej.net/IJPB-plugins/` |
 
 After enabling the MorphoLibJ site, click **Apply changes** and restart Fiji.
@@ -34,8 +37,8 @@ The plugin uses [pixi](https://prefix.dev/) to manage a self-contained Python en
    Fiji.app/
    └── plugins/
        └── InstanSeg/
-           ├── run_instanseg_fiji.py    ← appears in Plugins > InstanSeg menu
-           ├── _instanseg_runner.py     ← helper script (hidden from menu)
+           ├── run_instanseg_fiji.py
+           ├── _instanseg_runner.py
            ├── pixi.toml
            ├── install.sh
            └── install.bat
@@ -56,7 +59,7 @@ The plugin uses [pixi](https://prefix.dev/) to manage a self-contained Python en
 
 ## Usage
 
-1. Go to **Plugins → InstanSeg → run instanseg fiji**.
+1. Go to **Plugins → InstanSeg → Run Instanseg Fiji**.
 2. Fill in the dialog:
 
 | Parameter | Description |
