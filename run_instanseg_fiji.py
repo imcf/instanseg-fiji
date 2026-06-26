@@ -94,10 +94,10 @@ def main():
         raise SystemExit("Nothing to segment")
 
     script_dir = os.path.join(IJ.getDirectory("plugins"), "InstanSeg")
-    runner_path = os.path.join(script_dir, "instanseg_runner.py")
+    runner_path = os.path.join(script_dir, "_instanseg_runner.py")
 
     if not os.path.isfile(runner_path):
-        IJ.error("InstanSeg", "Cannot find instanseg_runner.py.\nExpected: " + runner_path)
+        IJ.error("InstanSeg", "Cannot find _instanseg_runner.py.\nExpected: " + runner_path)
         raise SystemExit("instanseg_runner.py not found")
 
     # --- Resolve Python executable ---
