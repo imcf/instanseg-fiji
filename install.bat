@@ -2,7 +2,7 @@
 :: Install the InstanSeg pixi environment.
 :: Run this once from the InstanSeg plugin folder before using the Fiji plugin.
 
-cd /d "%~dp0"
+pushd "%~dp0"
 
 where pixi >nul 2>&1
 if errorlevel 1 (
