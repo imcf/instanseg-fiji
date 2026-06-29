@@ -22,6 +22,7 @@ Place the entire InstanSeg/ folder in:
 
 import os
 import tempfile
+import time
 
 from ij import IJ
 from java.lang import ProcessBuilder
@@ -38,6 +39,24 @@ seg_z_slice = int(seg_z_slice)
 device = str(device)
 env_path_override = str(env_path_override).strip()
 
+def timed_log(message, as_string=False):
+    """Print a message to the ImageJ log window, prefixed with a timestamp.
+
+    If `as_string` is set to True, nothing will be printed to the log window,
+    instead the formatted log message will be returned as a string.
+
+    Parameters
+    ----------
+    message : str
+        Message to print
+    as_string : bool, optional
+        Flag to request the formatted string to be returned instead of printing
+        it to the log. By default False.
+    """
+    formatted = time.strftime("%H:%M:%S", time.localtime()) + ": " + message + " "
+    if as_string:
+        return formatted
+    IJ.log(formatted)
 
 def find_python(env_root):
     for candidate in [
@@ -62,7 +81,7 @@ def open_label_with_rois(path, title, roi_prefix):
 
     label_imp = IJ.openImage(path)
     if label_imp is None:
-        IJ.log("InstanSeg: WARNING - could not open " + path)
+        timed_log("WARNING - could not open " + path)
         return
     label_imp.setTitle(title)
     IJ.run(label_imp, "16 colors", "")
@@ -74,7 +93,7 @@ def open_label_with_rois(path, title, roi_prefix):
     try:
         IJ.run(label_imp, "Label image to ROIs", "")
     except Exception as e:
-        IJ.log("InstanSeg: MorphoLibJ not available, skipping ROI conversion (" + str(e) + ")")
+        timed_log("MorphoLibJ not available, skipping ROI conversion (" + str(e) + ")")
         print("MorphoLibJ error: " + str(e))
         return
 
@@ -84,8 +103,7 @@ def open_label_with_rois(path, title, roi_prefix):
     count_after = rm.getCount()
     for i in range(count_before, count_after):
         rm.getRoi(i).setName(roi_prefix + "_roi_" + str(i - count_before + 1))
-    IJ.log("InstanSeg: {} {} ROIs added to ROI Manager".format(
-        count_after - count_before, roi_prefix))
+    timed_log("{} {} ROIs added to ROI Manager".format(count_after - count_before, roi_prefix))
     label_imp.hide()
 
 def main():
@@ -121,7 +139,7 @@ def main():
     print("runner: " + runner_path)
 
     # --- Open the image in Fiji ---
-    IJ.log("InstanSeg: opening " + os.path.basename(image_path))
+    timed_log("opening " + os.path.basename(image_path))
     imp = IJ.openImage(image_path)
     if imp is None:
         IJ.error("InstanSeg", "Could not open image:\n" + image_path)
@@ -145,7 +163,7 @@ def main():
             os.makedirs(output_dir)
     else:
         output_dir = tempfile.mkdtemp(prefix="instanseg_")
-        IJ.log("InstanSeg: no results folder set, using temp dir: " + output_dir)
+        timed_log("no results folder set, using temp dir: " + output_dir)
 
     # --- Build subprocess command ---
     cmd = [
@@ -162,7 +180,7 @@ def main():
         cmd += ["--pixel-size", str(effective_pixel_size)]
 
     print("cmd: " + " ".join(cmd))
-    IJ.log("InstanSeg: running inference  [model={}, device={}, nuclei_ch={}, cells_ch={}]".format(
+    timed_log("running inference  [model={}, device={}, nuclei_ch={}, cells_ch={}]".format(
         model_type, device, nuclei_channel, cells_channel))
 
     # --- Launch subprocess ---
@@ -200,7 +218,7 @@ def main():
     line = reader.readLine()
     while line is not None:
         if line.startswith("INFO:"):
-            IJ.log("InstanSeg: " + line[5:])
+            timed_log(line[5:])
         elif not (line.startswith("NUCLEI_LABELS:") or line.startswith("CELL_LABELS:")):
             print(line)
         output_lines.append(line)
@@ -239,9 +257,9 @@ def main():
             roi_zip = os.path.join(output_dir, base + "_RoiSet.zip")
             rm.runCommand("Deselect")
             rm.runCommand("Save", roi_zip)
-            IJ.log("InstanSeg: ROIs saved to " + roi_zip)
+            timed_log("ROIs saved to " + roi_zip)
 
-    IJ.log("InstanSeg: finished.")
+    timed_log("finished.")
 
 
 if __name__ == "__main__":
