@@ -1,5 +1,5 @@
 # @ String (visibility=MESSAGE, value="<html><b> Fiji plugin for InstanSeg</b></html>") msg1
-# @ String(label="Image path", style="directory", value="") image_path
+# @ File(label="Image path", style="open") image_path
 # @ File(label="Results folder", style="directory") results_dir
 # @ String(label="Model", value="fluorescence_nuclei_and_cells", choices={"fluorescence_nuclei_and_cells", "brightfield_nuclei"}) model_type
 # @ Double(label="Pixel size (um/px, 0 = read from metadata)", value=0.0) pixel_size
@@ -30,7 +30,7 @@ from java.io import BufferedReader, InputStreamReader # pyright: ignore[reportMi
 from ij.plugin.frame import RoiManager # pyright: ignore[reportMissingImports]
 
 # Renew SciJava parameter variables to suppress Jython name warnings
-image_path = str(image_path).strip()
+image_path = str(image_path.getAbsolutePath()).strip() if image_path else ""
 results_dir = str(results_dir.getAbsolutePath()).strip() if results_dir else ""
 pixel_size = float(pixel_size)
 model_type = str(model_type)
@@ -124,6 +124,10 @@ def open_label_with_rois(path, title, roi_prefix):
 
 
 def main():
+    if not image_path or not os.path.isfile(image_path):
+        IJ.error("InstanSeg", "Image file not found:\n" + (image_path or "<none selected>"))
+        raise SystemExit("Image not found")
+
     if nuclei_channel == 0 and cells_channel == 0:
         IJ.error(
             "InstanSeg",
