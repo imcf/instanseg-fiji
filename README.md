@@ -4,7 +4,7 @@ A thin wrapper around [InstanSeg](https://github.com/instanseg) (Goldsborough et
 
 ---
 
-This plugin was developed by Rohan Girish (r.rohangirish@unibas.ch) at the Imaging Core Facility (IMCF) of the University of Basel.
+This plugin was developed by Rohan Girish ([r.rohangirish@unibas.ch](mailto:r.rohangirish@unibas.ch)) at the Imaging Core Facility (IMCF) of the University of Basel.
 
 ---
 
@@ -31,7 +31,7 @@ The plugin uses [pixi](https://prefix.dev/) to manage a self-contained Python en
 
 ## Installation
 
-1. **Download and extract the ZIP.** You will get an `InstanSeg/` folder. Move the entire folder into Fiji's `plugins/` directory so the result looks like this:
+1. From the latest release, **download and extract the ZIP.** You will get an `InstanSeg/` folder. Move the entire folder into Fiji's `plugins/` directory so the result looks like this:
 
    ```text
    Fiji.app/
@@ -40,20 +40,32 @@ The plugin uses [pixi](https://prefix.dev/) to manage a self-contained Python en
            ├── run_instanseg_fiji.py
            ├── _instanseg_runner.py
            ├── pixi.toml
+           ├── pixi.lock
            ├── install.sh
            └── install.bat
    ```
 
-   > On **Windows**, `Fiji.app` is wherever you extracted Fiji — commonly `C:\Tools\Fiji.app` or your desktop. Navigate there, open `plugins\`, and paste the `InstanSeg\` folder in.
-
 2. **Install the Python environment.**
+
+    If you already have an installed InstanSeg Python installation, you can skip the following and
+    paste your path for the python.exe from your env into the script parameter window.
 
    - **Windows**: open the `InstanSeg\` folder in File Explorer and **double-click `install.bat`**. A terminal window will open and download all dependencies automatically.
    - **Linux / macOS**: open a terminal in the `InstanSeg/` folder and run `bash install.sh`.
 
-   This runs `pixi install`, which downloads Python 3.11, PyTorch, InstanSeg, Bio-Formats, and all other dependencies into a `.pixi/` subfolder inside `InstanSeg/`. It may take several minutes on the first run. You only need to do this once.
+   This runs `pixi install`, which downloads Python 3.11, PyTorch, InstanSeg, Bio-Formats, and all other dependencies. It may take several minutes on the first run. You only need to do this once.
 
-3. **Restart Fiji.** The plugin will appear under **Plugins → InstanSeg → run instanseg fiji**.
+   The environment is installed **outside** the Fiji plugins folder so it does not interfere with Fiji's menu discovery:
+
+   | Platform | Environment location |
+   | --- | --- |
+   | Windows | `C:\Users\<you>\AppData\Roaming\InstanSeg\` |
+   | Linux / macOS | `~/.instanseg/` |
+
+   > The terminal window will print the exact path at the end of the install so you can confirm where it landed.
+
+3. **Restart Fiji.** The plugin will appear under *Plugins → InstanSeg → run instanseg fiji*,
+or by searching "**run instanseg**" in the Fiji search bar.
 
 ---
 
