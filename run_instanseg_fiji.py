@@ -27,6 +27,7 @@ import time
 from ij import IJ
 from java.lang import ProcessBuilder
 from java.io import BufferedReader, InputStreamReader
+from ij.plugin.frame import RoiManager
 
 # Renew SciJava parameter variables to suppress Jython name warnings
 image_path = str(image_path).strip()
@@ -72,15 +73,26 @@ def find_python(env_root):
     return None
 
 
-def find_pixi_python(script_dir):
-    pixi_env = os.path.join(script_dir, ".pixi", "envs", "default")
+def get_instanseg_env_dir():
+    """Return the directory where the InstanSeg pixi environment is expected to be found.
+    On Windows, this is %APPDATA%\InstanSeg. On Linux/Mac, this is ~/.instanseg."""
+    appdata = os.environ.get("APPDATA", "")
+    if appdata:
+        return os.path.join(appdata, "InstanSeg")
+    return os.path.join(os.path.expanduser("~"), ".instanseg")
+
+
+def find_pixi_python():
+    """Find Python executable to run InstanSeg from the bundled pixi env."""
+    env_dir = get_instanseg_env_dir()
+    pixi_env = os.path.join(env_dir, ".pixi", "envs", "default")
+    print("InstanSeg env dir : " + env_dir)
+    print("Pixi env          : " + pixi_env)
     return find_python(pixi_env)
 
 
 def open_label_with_rois(path, title, roi_prefix):
     """Open a label TIFF, apply a colour LUT, and convert labels to ROIs via MorphoLibJ."""
-    from ij.plugin.frame import RoiManager
-
     label_imp = IJ.openImage(path)
     if label_imp is None:
         timed_log("WARNING - could not open " + path)
