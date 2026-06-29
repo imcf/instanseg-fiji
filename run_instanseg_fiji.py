@@ -24,10 +24,10 @@ import os
 import tempfile
 import time
 
-from ij import IJ
-from java.lang import ProcessBuilder
-from java.io import BufferedReader, InputStreamReader
-from ij.plugin.frame import RoiManager
+from ij import IJ # pyright: ignore[reportMissingImports]
+from java.lang import ProcessBuilder # pyright: ignore[reportMissingImports]
+from java.io import BufferedReader, InputStreamReader # pyright: ignore[reportMissingImports]
+from ij.plugin.frame import RoiManager # pyright: ignore[reportMissingImports]
 
 # Renew SciJava parameter variables to suppress Jython name warnings
 image_path = str(image_path).strip()
