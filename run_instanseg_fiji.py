@@ -39,6 +39,7 @@ seg_z_slice = int(seg_z_slice)
 device = str(device)
 env_path_override = str(env_path_override).strip()
 
+
 def timed_log(message, as_string=False):
     """Print a message to the ImageJ log window, prefixed with a timestamp.
 
@@ -57,6 +58,7 @@ def timed_log(message, as_string=False):
     if as_string:
         return formatted
     IJ.log(formatted)
+
 
 def find_python(env_root):
     for candidate in [
@@ -103,35 +105,46 @@ def open_label_with_rois(path, title, roi_prefix):
     count_after = rm.getCount()
     for i in range(count_before, count_after):
         rm.getRoi(i).setName(roi_prefix + "_roi_" + str(i - count_before + 1))
-    timed_log("{} {} ROIs added to ROI Manager".format(count_after - count_before, roi_prefix))
+    timed_log(
+        "{} {} ROIs added to ROI Manager".format(count_after - count_before, roi_prefix)
+    )
     label_imp.hide()
+
 
 def main():
     if nuclei_channel == 0 and cells_channel == 0:
-        IJ.error("InstanSeg", "Both nuclei and cells channels are set to 0.\nSet at least one to a valid channel.")
+        IJ.error(
+            "InstanSeg",
+            "Both nuclei and cells channels are set to 0.\nSet at least one to a valid channel.",
+        )
         raise SystemExit("Nothing to segment")
 
     script_dir = os.path.join(IJ.getDirectory("plugins"), "InstanSeg")
     runner_path = os.path.join(script_dir, "_instanseg_runner.py")
 
     if not os.path.isfile(runner_path):
-        IJ.error("InstanSeg", "Cannot find _instanseg_runner.py.\nExpected: " + runner_path)
+        IJ.error(
+            "InstanSeg", "Cannot find _instanseg_runner.py.\nExpected: " + runner_path
+        )
         raise SystemExit("instanseg_runner.py not found")
 
     # --- Resolve Python executable ---
     if env_path_override:
         python_path = find_python(env_path_override)
         if python_path is None:
-            IJ.error("InstanSeg", "No Python executable found in:\n" + env_path_override)
+            IJ.error(
+                "InstanSeg", "No Python executable found in:\n" + env_path_override
+            )
             raise SystemExit("Python not found in provided environment")
     else:
-        python_path = find_pixi_python(script_dir)
+        python_path = find_pixi_python()
         if python_path is None:
+            env_dir = get_instanseg_env_dir()
             IJ.error(
                 "InstanSeg",
-                "No Python executable found in the bundled pixi environment.\n"
+                "No Python executable found.\n"
                 "Please run install.sh / install.bat from the InstanSeg plugin folder first.\n"
-                "Expected env at: " + os.path.join(script_dir, ".pixi", "envs", "default"),
+                "Expected env at: " + os.path.join(env_dir, ".pixi", "envs", "default"),
             )
             raise SystemExit("Python not found in pixi environment")
 
@@ -146,15 +159,19 @@ def main():
         raise SystemExit("Could not open image")
     imp.show()
 
-    # --- Resolve pixel size ---
+    # Resolve effective pixel size
     # Priority: dialog value > Fiji calibration > let the runner read from metadata
     effective_pixel_size = pixel_size
     if effective_pixel_size == 0.0:
         cal = imp.getCalibration()
         unit = cal.getUnit().lower() if cal.getUnit() else ""
-        if cal.scaled() and unit in ("um", u"µm", "micron", "microns"):
+        if cal.scaled() and unit in ("um", "µm", "micron", "microns"):
             effective_pixel_size = cal.pixelWidth
-            print("pixel size from Fiji calibration: {} um/px".format(effective_pixel_size))
+            print(
+                "pixel size from Fiji calibration: {} um/px".format(
+                    effective_pixel_size
+                )
+            )
 
     # --- Resolve output directory ---
     if results_dir:
@@ -165,26 +182,39 @@ def main():
         output_dir = tempfile.mkdtemp(prefix="instanseg_")
         timed_log("no results folder set, using temp dir: " + output_dir)
 
-    # --- Build subprocess command ---
+    # Build Python subprocess command line
     cmd = [
-        python_path, "-u", runner_path,
-        "--image", image_path,
-        "--output-dir", output_dir,
-        "--model", model_type,
-        "--nuclei-channel", str(nuclei_channel),
-        "--cells-channel", str(cells_channel),
-        "--z-slice", str(seg_z_slice),
-        "--device", device,
+        python_path,
+        "-u",
+        runner_path,
+        "--image",
+        image_path,
+        "--output-dir",
+        output_dir,
+        "--model",
+        model_type,
+        "--nuclei-channel",
+        str(nuclei_channel),
+        "--cells-channel",
+        str(cells_channel),
+        "--z-slice",
+        str(seg_z_slice),
+        "--device",
+        device,
     ]
     if effective_pixel_size > 0.0:
         cmd += ["--pixel-size", str(effective_pixel_size)]
 
     print("cmd: " + " ".join(cmd))
-    timed_log("running inference  [model={}, device={}, nuclei_ch={}, cells_ch={}]".format(
-        model_type, device, nuclei_channel, cells_channel))
+    timed_log(
+        "running inference  [model={}, device={}, nuclei_ch={}, cells_ch={}]".format(
+            model_type, device, nuclei_channel, cells_channel
+        )
+    )
 
     # --- Launch subprocess ---
     from java.util import ArrayList
+
     cmd_list = ArrayList()
     for arg in cmd:
         cmd_list.add(arg)
@@ -226,7 +256,11 @@ def main():
     exit_code = process.waitFor()
 
     if exit_code != 0:
-        print("FAILED with exit code: {} (0x{:08X})".format(exit_code, exit_code & 0xFFFFFFFF))
+        print(
+            "FAILED with exit code: {} (0x{:08X})".format(
+                exit_code, exit_code & 0xFFFFFFFF
+            )
+        )
         raise SystemExit("Runner failed (exit code {})".format(exit_code))
 
     # --- Parse label paths from runner output ---
@@ -234,12 +268,14 @@ def main():
     cells_path = None
     for line in output_lines:
         if line.startswith("NUCLEI_LABELS:"):
-            nuclei_path = line[len("NUCLEI_LABELS:"):]
+            nuclei_path = line[len("NUCLEI_LABELS:") :]
         elif line.startswith("CELL_LABELS:"):
-            cells_path = line[len("CELL_LABELS:"):]
+            cells_path = line[len("CELL_LABELS:") :]
 
     if not nuclei_path and not cells_path:
-        IJ.error("InstanSeg", "No label images returned.\nCheck the Script Editor console.")
+        IJ.error(
+            "InstanSeg", "No label images returned.\nCheck the Script Editor console."
+        )
         raise SystemExit("No labels returned")
 
     # --- Open labels and convert to ROIs ---
@@ -248,7 +284,6 @@ def main():
     if cells_path:
         open_label_with_rois(cells_path, "Cell labels", "cell")
 
-    from ij.plugin.frame import RoiManager
     rm = RoiManager.getInstance()
     if rm is not None:
         rm.setVisible(True)
@@ -259,7 +294,7 @@ def main():
             rm.runCommand("Save", roi_zip)
             timed_log("ROIs saved to " + roi_zip)
 
-    timed_log("finished.")
+    timed_log("Finished.")
 
 
 if __name__ == "__main__":
