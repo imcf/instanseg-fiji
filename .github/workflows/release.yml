@@ -27,8 +27,18 @@ jobs:
              InstanSeg/
           zip -r InstanSeg.zip InstanSeg/
 
+      - name: Extract changelog for this version
+        id: changelog
+        run: |
+          body=$(awk '/^## \[/{if(found) exit; found=1; next} found' CHANGELOG.md)
+          {
+            echo "body<<EOF"
+            echo "$body"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: InstanSeg.zip
-          generate_release_notes: true
+          body: ${{ steps.changelog.outputs.body }}
