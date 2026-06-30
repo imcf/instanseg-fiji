@@ -12,12 +12,12 @@
 """
 InstanSeg segmentation plugin for Fiji.
 
-Calls the instanseg_runner.py helper using the Python executable from the pixi environment
+Calls the _instanseg_runner.py helper using the Python executable from the pixi environment
 bundled alongside this script. Run install.sh (Linux/Mac) or install.bat (Windows) once
 before using this plugin to set up the environment.
 
 Place the entire InstanSeg/ folder in:
-  Fiji.app/plugins/InstanSeg/
+  Fiji.app/plugins/
 """
 
 import os
