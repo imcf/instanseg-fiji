@@ -12,25 +12,22 @@
 """
 InstanSeg segmentation plugin for Fiji.
 
-Calls the _instanseg_runner.py helper using the Python executable from the pixi environment
-bundled alongside this script. Run install.sh (Linux/Mac) or install.bat (Windows) once
-before using this plugin to set up the environment.
+Runs the _instanseg_runner.py helper as an Appose task. Appose builds the pixi
+environment itself from the pixi.toml bundled alongside this script, the first
+time the plugin is used, and reuses it on every later run.
 
 Place the entire InstanSeg/ folder in:
   Fiji.app/plugins/
 """
 
 import os
+import shutil
 import tempfile
 import time
 
 from ij import IJ  # pyright: ignore[reportMissingImports]
-from java.lang import ProcessBuilder  # pyright: ignore[reportMissingImports]
-from java.io import ( # pyright: ignore[reportMissingImports]
-    BufferedReader,
-    InputStreamReader,
-)  # pyright: ignore[reportMissingImports]
 from ij.plugin.frame import RoiManager  # pyright: ignore[reportMissingImports]
+from org.apposed.appose import Appose  # pyright: ignore[reportMissingImports]
 
 # Renew SciJava parameter variables to suppress Jython name warnings
 image_path = str(image_path.getAbsolutePath()).strip() if image_path else ""
@@ -64,16 +61,31 @@ def timed_log(message, as_string=False):
     IJ.log(formatted)
 
 
-def find_python(env_root):
-    for candidate in [
-        os.path.join(env_root, "bin", "python"),
-        os.path.join(env_root, "bin", "python3"),
-        os.path.join(env_root, "Scripts", "python.exe"),
-        os.path.join(env_root, "python.exe"),
-    ]:
-        if os.path.isfile(candidate):
-            return candidate
-    return None
+def log_worker_debug(message):
+    """Forward Appose service/worker debug output to the console.
+
+    Falls back to an ASCII-safe encoding since Windows consoles are often
+    stuck on a legacy codepage (e.g. cp850) that can't print every character
+    pixi or Python might emit.
+    """
+    try:
+        print(message)
+    except UnicodeEncodeError:
+        print(message.encode("ascii", "backslashreplace"))
+
+
+def log_task_progress(event):
+    """Forward Appose task progress messages to the Fiji log window."""
+    if event.message:
+        timed_log(event.message)
+
+
+def log_build_progress(title, current, maximum):
+    """Forward Appose environment build progress to the Fiji log window."""
+    if maximum > 0:
+        timed_log("{}: {}/{}".format(title, current, maximum))
+    else:
+        timed_log(title)
 
 
 def get_instanseg_env_dir():
@@ -83,15 +95,6 @@ def get_instanseg_env_dir():
     if appdata:
         return os.path.join(appdata, "InstanSeg")
     return os.path.join(os.path.expanduser("~"), ".instanseg")
-
-
-def find_pixi_python():
-    """Find Python executable to run InstanSeg from the bundled pixi env."""
-    env_dir = get_instanseg_env_dir()
-    pixi_env = os.path.join(env_dir, ".pixi", "envs", "default")
-    print("InstanSeg env dir : " + env_dir)
-    print("Pixi env          : " + pixi_env)
-    return find_python(pixi_env)
 
 
 def open_label_with_rois(path, title, roi_prefix):
@@ -149,30 +152,50 @@ def main():
         )
         raise SystemExit("instanseg_runner.py not found")
 
-    # --- Resolve Python executable ---
+    # Get the InstanSeg environment, building it with Appose if needed.
+    # A custom environment path is just wrapped as-is. The bundled environment
+    # is built from pixi.toml the first time, then reused on every later run
+    # (Appose skips the rebuild once the environment is already up to date).
     if env_path_override:
-        python_path = find_python(env_path_override)
-        if python_path is None:
+        env_dir = env_path_override
+        print("environment dir: " + env_dir)
+        try:
+            env = Appose.wrap(env_dir)
+        except Exception as e:
             IJ.error(
-                "InstanSeg", "No Python executable found in:\n" + env_path_override
+                "InstanSeg", "Could not use environment at:\n" + env_dir + "\n\n" + str(e)
             )
-            raise SystemExit("Python not found in provided environment")
+            raise SystemExit("Environment not usable")
     else:
-        python_path = find_pixi_python()
-        if python_path is None:
-            env_dir = get_instanseg_env_dir()
-            IJ.error(
-                "InstanSeg",
-                "No Python executable found.\n"
-                "Please run install.sh / install.bat from the InstanSeg plugin folder first.\n"
-                "Expected env at: " + os.path.join(env_dir, ".pixi", "envs", "default"),
+        env_dir = get_instanseg_env_dir()
+        pixi_toml_path = os.path.join(script_dir, "pixi.toml")
+        pixi_lock_path = os.path.join(script_dir, "pixi.lock")
+
+        if not os.path.isfile(pixi_toml_path):
+            IJ.error("InstanSeg", "Cannot find pixi.toml.\nExpected: " + pixi_toml_path)
+            raise SystemExit("pixi.toml not found")
+
+        print("environment dir: " + env_dir)
+        if not os.path.isdir(env_dir):
+            os.makedirs(env_dir)
+        if os.path.isfile(pixi_lock_path):
+            shutil.copyfile(pixi_lock_path, os.path.join(env_dir, "pixi.lock"))
+
+        timed_log("preparing InstanSeg environment (first run can take a few minutes)...")
+        try:
+            env = (
+                Appose.pixi(pixi_toml_path)
+                .base(env_dir)
+                .subscribeOutput(log_worker_debug)
+                .subscribeError(log_worker_debug)
+                .subscribeProgress(log_build_progress)
+                .build()
             )
-            raise SystemExit("Python not found in pixi environment")
+        except Exception as e:
+            IJ.error("InstanSeg", "Could not build environment at:\n" + env_dir + "\n\n" + str(e))
+            raise SystemExit("Environment build failed")
 
-    print("python: " + python_path)
-    print("runner: " + runner_path)
-
-    # --- Open the image in Fiji ---
+    # Open the image in Fiji
     timed_log("opening " + os.path.basename(image_path))
     imp = IJ.openImage(image_path)
     if imp is None:
@@ -194,7 +217,7 @@ def main():
                 )
             )
 
-    # --- Resolve output directory ---
+    # Resolve output directory
     if results_dir:
         output_dir = results_dir
         if not os.path.isdir(output_dir):
@@ -203,95 +226,77 @@ def main():
         output_dir = tempfile.mkdtemp(prefix="instanseg_")
         timed_log("no results folder set, using temp dir: " + output_dir)
 
-    # Build Python subprocess command line
-    cmd = [
-        python_path,
-        "-u",
-        runner_path,
-        "--image",
-        image_path,
-        "--output-dir",
-        output_dir,
-        "--model",
-        model_type,
-        "--nuclei-channel",
-        str(nuclei_channel),
-        "--cells-channel",
-        str(cells_channel),
-        "--z-slice",
-        str(seg_z_slice),
-        "--device",
-        device,
-    ]
-    if effective_pixel_size > 0.0:
-        cmd += ["--pixel-size", str(effective_pixel_size)]
+    # Init script: heavy imports (numpy, torch, and anything that starts a JVM
+    # like bioio_bioformats) must happen before the worker opens stdin for the
+    # task protocol, or they can hang on Windows. See apposed/appose#23.
+    # Everything imported here also becomes available as a global inside every
+    # task script, so run_instanseg is ready to call directly below.
+    init_script = (
+        "import os\n"
+        "os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'\n"
+        "import sys\n"
+        "sys.path.insert(0, {plugin_dir!r})\n"
+        "import numpy\n"
+        "import torch\n"
+        "import tifffile\n"
+        "import bioio_bioformats\n"
+        "import scyjava\n"
+        "scyjava.start_jvm()\n"
+        "from instanseg import InstanSeg\n"
+        "from _instanseg_runner import run_instanseg\n"
+    ).format(plugin_dir=script_dir)
 
-    print("cmd: " + " ".join(cmd))
+    # Build the Appose task
+    # run_instanseg() was already imported by the init script above, so the
+    # task script just calls it. Its return value (a dict) becomes the task's outputs.
+    worker_script = (
+        "run_instanseg(\n"
+        "    image=image,\n"
+        "    output_dir=output_dir,\n"
+        "    model=model,\n"
+        "    nuclei_channel=nuclei_channel,\n"
+        "    cells_channel=cells_channel,\n"
+        "    z_slice=z_slice,\n"
+        "    device=device,\n"
+        "    pixel_size=pixel_size,\n"
+        "    task=task,\n"
+        ")\n"
+    )
+
+    inputs = {
+        "image": image_path,
+        "output_dir": output_dir,
+        "model": model_type,
+        "nuclei_channel": nuclei_channel,
+        "cells_channel": cells_channel,
+        "z_slice": seg_z_slice,
+        "device": device,
+        "pixel_size": effective_pixel_size if effective_pixel_size > 0.0 else None,
+    }
+
     timed_log(
         "running inference  [model={}, device={}, nuclei_ch={}, cells_ch={}]".format(
             model_type, device, nuclei_channel, cells_channel
         )
     )
 
-    # --- Launch subprocess --- 
-    from java.util import ArrayList # pyright: ignore[reportMissingImports]
+    # Launch the worker process and run the task
+    service = env.python()
+    service.init(init_script)
+    service.debug(log_worker_debug)
 
-    cmd_list = ArrayList()
-    for arg in cmd:
-        cmd_list.add(arg)
-
-    pb = ProcessBuilder(cmd_list)
-    pb.redirectErrorStream(True)
-
-    # Prepend pixi env DLL directories so the correct native library versions are
-    # found before any system DLLs the moment python.exe starts (Windows).
-    env_root = os.path.dirname(python_path)
-    pb_env = pb.environment()
-    current_path = pb_env.get("PATH") or ""
-    pixi_paths = [
-        os.path.join(env_root, "Library", "bin"),
-        os.path.join(env_root, "Library", "mingw-w64", "bin"),
-        os.path.join(env_root, "Library", "usr", "bin"),
-        env_root,
-    ]
-    prepend = os.pathsep.join(p for p in pixi_paths if os.path.isdir(p))
-    pb_env.put("PATH", prepend + os.pathsep + current_path)
+    task = service.task(worker_script, inputs)
+    task.listen(log_task_progress)
 
     try:
-        process = pb.start()
+        task.waitFor()
     except Exception as e:
-        IJ.error("InstanSeg", "Failed to start Python process:\n" + str(e))
-        raise SystemExit("Process start failed")
+        IJ.error("InstanSeg", "Inference failed:\n" + str(e))
+        raise SystemExit("Runner failed")
 
-    # --- Stream output: INFO: lines -> Fiji Log, everything else -> console ---
-    reader = BufferedReader(InputStreamReader(process.getInputStream(), "UTF-8"))
-    output_lines = []
-    line = reader.readLine()
-    while line is not None:
-        if line.startswith("INFO:"):
-            timed_log(line[5:])
-        elif not (line.startswith("NUCLEI_LABELS:") or line.startswith("CELL_LABELS:")):
-            print(line)
-        output_lines.append(line)
-        line = reader.readLine()
-    exit_code = process.waitFor()
-
-    if exit_code != 0:
-        print(
-            "FAILED with exit code: {} (0x{:08X})".format(
-                exit_code, exit_code & 0xFFFFFFFF
-            )
-        )
-        raise SystemExit("Runner failed (exit code {})".format(exit_code))
-
-    # --- Parse label paths from runner output ---
-    nuclei_path = None
-    cells_path = None
-    for line in output_lines:
-        if line.startswith("NUCLEI_LABELS:"):
-            nuclei_path = line[len("NUCLEI_LABELS:") :]
-        elif line.startswith("CELL_LABELS:"):
-            cells_path = line[len("CELL_LABELS:") :]
+    # Read label paths from the task outputs
+    nuclei_path = task.outputs.get("nuclei_path")
+    cells_path = task.outputs.get("cells_path")
 
     if not nuclei_path and not cells_path:
         IJ.error(
@@ -299,7 +304,7 @@ def main():
         )
         raise SystemExit("No labels returned")
 
-    # --- Open labels and convert to ROIs ---
+    # Open labels and convert to ROIs
     if nuclei_path:
         open_label_with_rois(nuclei_path, "Nuclei labels", "nucleus")
     if cells_path:
