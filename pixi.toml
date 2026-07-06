@@ -5,6 +5,7 @@ platforms = ["linux-64", "win-64"]
 
 [dependencies]
 python = "3.11.*"
+openjdk = "11.*"
 numpy = "*"
 scipy = "*"
 scikit-image = "*"
@@ -26,6 +27,7 @@ roifile = "*"
 extra-index-urls = ["https://download.pytorch.org/whl/cu118"]
 
 [pypi-dependencies]
+appose = "*"
 bioio-nd2 = "*"
 bioio-tifffile = "*"
 bioio-bioformats = "*"
