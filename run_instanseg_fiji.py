@@ -24,17 +24,20 @@ import os
 import tempfile
 import time
 
-from ij import IJ # pyright: ignore[reportMissingImports]
-from java.lang import ProcessBuilder # pyright: ignore[reportMissingImports]
-from java.io import BufferedReader, InputStreamReader # pyright: ignore[reportMissingImports]
-from ij.plugin.frame import RoiManager # pyright: ignore[reportMissingImports]
+from ij import IJ  # pyright: ignore[reportMissingImports]
+from java.lang import ProcessBuilder  # pyright: ignore[reportMissingImports]
+from java.io import ( # pyright: ignore[reportMissingImports]
+    BufferedReader,
+    InputStreamReader,
+)  # pyright: ignore[reportMissingImports]
+from ij.plugin.frame import RoiManager  # pyright: ignore[reportMissingImports]
 
 # Renew SciJava parameter variables to suppress Jython name warnings
 image_path = str(image_path.getAbsolutePath()).strip() if image_path else ""
 results_dir = str(results_dir.getAbsolutePath()).strip() if results_dir else ""
 pixel_size = float(pixel_size)
 model_type = str(model_type)
-nuclei_channel = int(nuclei_channel)
+nuclei_channel = int(nuclei_channel) 
 cells_channel = int(cells_channel)
 seg_z_slice = int(seg_z_slice)
 device = str(device)
@@ -125,7 +128,9 @@ def open_label_with_rois(path, title, roi_prefix):
 
 def main():
     if not image_path or not os.path.isfile(image_path):
-        IJ.error("InstanSeg", "Image file not found:\n" + (image_path or "<none selected>"))
+        IJ.error(
+            "InstanSeg", "Image file not found:\n" + (image_path or "<none selected>")
+        )
         raise SystemExit("Image not found")
 
     if nuclei_channel == 0 and cells_channel == 0:
@@ -228,8 +233,8 @@ def main():
         )
     )
 
-    # --- Launch subprocess ---
-    from java.util import ArrayList
+    # --- Launch subprocess --- 
+    from java.util import ArrayList # pyright: ignore[reportMissingImports]
 
     cmd_list = ArrayList()
     for arg in cmd:
