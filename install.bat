@@ -18,9 +18,22 @@ if errorlevel 1 (
 
 if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%"
 
+if not exist "%~dp0pixi.toml" (
+    echo ERROR: pixi.toml not found next to this script.
+    echo Expected: %~dp0pixi.toml
+    pause
+    exit /b 1
+)
+
 echo Copying environment files...
-copy /Y "%~dp0pixi.toml" "%INSTALL_DIR%\pixi.toml" >nul
-if exist "%~dp0pixi.lock" copy /Y "%~dp0pixi.lock" "%INSTALL_DIR%\pixi.lock" >nul
+copy /Y "%~dp0pixi.toml" "%INSTALL_DIR%\pixi.toml"
+if exist "%~dp0pixi.lock" copy /Y "%~dp0pixi.lock" "%INSTALL_DIR%\pixi.lock"
+
+if not exist "%INSTALL_DIR%\pixi.toml" (
+    echo ERROR: failed to copy pixi.toml to %INSTALL_DIR%.
+    pause
+    exit /b 1
+)
 
 pushd "%INSTALL_DIR%"
 echo Installing InstanSeg environment (this may take a few minutes)...
