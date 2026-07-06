@@ -15,34 +15,27 @@ Usage:
 import os
 
 # Fix OpenMP conflict between PyTorch and numpy on Windows (libiomp5md.dll vs libomp.dll)
-# Must be set before any library imports
+# Must be set before torch/numpy are imported
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-import argparse
-import sys
-import traceback
 
-
-def info(msg):
-    """User-facing message — routed to the Fiji Log by the Jython caller."""
-    print("INFO:" + msg)
-    sys.stdout.flush()
-
-
-def debug(msg):
-    """Developer/diagnostic message — goes to the Script Editor console."""
-    print("[DEBUG] " + msg)
-    sys.stdout.flush()
+def _notify(task, message):
+    """Send a progress message. Routed through Appose when a task is given,
+    otherwise just printed (standalone CLI use)."""
+    if task is not None:
+        task.update(message=message)
+    else:
+        print(message)
 
 
 def _prepare_input(image_path, nuclei_ch, cells_ch, z_slice=0):
     """Read image and build the array to pass to InstanSeg.
 
     - nuclei_ch / cells_ch: 1-based channel indices. 0 means skip that output.
-    - If both are the same non-zero value: one channel → (H, W).
-    - If they differ and both non-zero: stack them → (2, H, W) so InstanSeg can
+    - If both are the same non-zero value: one channel -> (H, W).
+    - If they differ and both non-zero: stack them -> (2, H, W) so InstanSeg can
       use both (nuclear marker + cell marker) simultaneously.
-    - If only one is non-zero: single channel → (H, W).
+    - If only one is non-zero: single channel -> (H, W).
 
     Returns (image_array, pixel_size_um).
     """
@@ -51,7 +44,7 @@ def _prepare_input(image_path, nuclei_ch, cells_ch, z_slice=0):
     import bioio_bioformats
 
     img = BioImage(image_path, reader=bioio_bioformats.Reader)
-    pixel_size = img.physical_pixel_sizes.X  # µm/px, may be None
+    pixel_size = img.physical_pixel_sizes.X  # um/px, may be None
 
     data = img.get_image_data("CZYX")  # (C, Z, Y, X)
     n_channels, n_z = data.shape[0], data.shape[1]
