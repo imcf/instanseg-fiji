@@ -1,10 +1,11 @@
-[project]
+[workspace]
 name = "instanseg-fiji"
 channels = ["conda-forge"]
 platforms = ["linux-64", "win-64"]
 
 [dependencies]
 python = "3.11.*"
+openjdk = "11.*"
 numpy = "*"
 scipy = "*"
 scikit-image = "*"
@@ -18,23 +19,16 @@ ipykernel = "*"
 roifile = "*"
 
 [pypi-options]
-# # PyTorch CUDA wheels — pick the URL matching your CUDA version from nvidia-smi:
-# #   CUDA 12.8:  https://download.pytorch.org/whl/cu128
-# #   CUDA 12.6:  https://download.pytorch.org/whl/cu126
-# #   CUDA 12.4:  https://download.pytorch.org/whl/cu124
-# #   CUDA 11.8:  https://download.pytorch.org/whl/cu118
 extra-index-urls = ["https://download.pytorch.org/whl/cu118"]
 
 [pypi-dependencies]
+appose = "*"
 bioio-nd2 = "*"
 bioio-tifffile = "*"
 bioio-bioformats = "*"
 bioio = "*"
 customtkinter = "*"
 instanseg-torch = "*"
-# torch = ">=2.0"
-# torchvision = "*"
-# torchaudio = "*"
 colorama = "*"
 torch = { version = "*", index = "https://download.pytorch.org/whl/cu118" }
 torchvision = { version = "*", index = "https://download.pytorch.org/whl/cu118" }

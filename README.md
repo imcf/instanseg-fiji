@@ -1,6 +1,6 @@
 # InstanSeg Fiji Plugin
 
-A thin wrapper around [InstanSeg](https://github.com/instanseg) (Goldsborough et al., 2024) that makes the model runnable directly from the Fiji GUI. The Jython plugin (`run_instanseg_fiji.py`) collects parameters from a dialog, then calls a standalone Python subprocess (`_instanseg_runner.py`) that runs inference using the InstanSeg environment and writes label TIFFs back to your results folder. Fiji then opens the labels, converts them to ROIs via MorphoLibJ, and shows them in the ROI Manager.
+A thin wrapper around [InstanSeg](https://github.com/instanseg) (Goldsborough et al., 2024) that makes the model runnable directly from the Fiji GUI. The Jython plugin (`run_instanseg_fiji.py`) collects parameters from a dialog, then uses [Appose](https://github.com/apposed/appose) to run `_instanseg_runner.py` inside the InstanSeg pixi environment and get the label TIFFs back. Fiji then opens the labels, converts them to ROIs via MorphoLibJ, and shows them in the ROI Manager.
 
 ---
 
@@ -20,12 +20,9 @@ Open **Help → Update… → Manage update sites** and make sure the following 
 
 After enabling the MorphoLibJ site, click **Apply changes** and restart Fiji.
 
-### Pixi (Python environment manager)
+### Appose
 
-The plugin uses [pixi](https://prefix.dev/) to manage a self-contained Python environment with InstanSeg and all its dependencies. Install pixi once on your system:
-
-- **Windows** (PowerShell): `iwr -useb https://pixi.sh/install.ps1 | iex`
-- **Linux / macOS**: `curl -fsSL https://pixi.sh/install.sh | bash`
+The plugin uses [Appose](https://github.com/apposed/appose) to build and run a self-contained Python environment with InstanSeg and all its dependencies. Make sure the Appose jar (`appose-*.jar`) is present in Fiji's `jars/` folder.
 
 ---
 
@@ -40,32 +37,22 @@ The plugin uses [pixi](https://prefix.dev/) to manage a self-contained Python en
            ├── run_instanseg_fiji.py
            ├── _instanseg_runner.py
            ├── pixi.toml
-           ├── pixi.lock
-           ├── install.sh
-           └── install.bat
+           └── pixi.lock
    ```
 
-2. **Install the Python environment.**
-
-    If you already have an installed InstanSeg Python installation, you can skip the following and
-    paste your path for the python.exe from your env into the script parameter window.
-
-   - **Windows**: open the `InstanSeg\` folder in File Explorer and **double-click `install.bat`**. A terminal window will open and download all dependencies automatically.
-   - **Linux / macOS**: open a terminal in the `InstanSeg/` folder and run `bash install.sh`.
-
-   This runs `pixi install`, which downloads Python 3.11, PyTorch, InstanSeg, Bio-Formats, and all other dependencies. It may take several minutes on the first run. You only need to do this once.
-
-   The environment is installed **outside** the Fiji plugins folder so it does not interfere with Fiji's menu discovery:
-
-   | Platform | Environment location |
-   | --- | --- |
-   | Windows | `C:\Users\<you>\AppData\Roaming\InstanSeg\` |
-   | Linux / macOS | `~/.instanseg/` |
-
-   > The terminal window will print the exact path at the end of the install so you can confirm where it landed.
-
-3. **Restart Fiji.** The plugin will appear under *Plugins → InstanSeg → run instanseg fiji*,
+2. **Restart Fiji.** The plugin will appear under *Plugins → InstanSeg → Run Instanseg Fiji*,
 or by searching "**run instanseg**" in the Fiji search bar.
+
+The first time you run the plugin, Appose downloads its own copy of pixi and builds the Python environment (Python 3.11, PyTorch, InstanSeg, Bio-Formats, and everything else in `pixi.toml`), which can take several minutes and is shown in the Fiji Log window. Every run after that reuses the same environment and starts instantly, since Appose detects nothing has changed and skips rebuilding it.
+
+The environment is built **outside** the Fiji plugins folder so it does not interfere with Fiji's menu discovery:
+
+| Platform | Environment location |
+| --- | --- |
+| Windows | `C:\Users\<USERNAME>\AppData\Roaming\InstanSeg\` |
+| Linux / macOS | `~/.instanseg/` |
+
+If you already have your own InstanSeg Python installation (pixi, conda, or venv), you can skip all of the above and paste its root path into the **Environment path** field in the script parameter window instead.
 
 ---
 
