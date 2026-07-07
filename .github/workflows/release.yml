@@ -17,12 +17,10 @@ jobs:
       - name: Build InstanSeg.zip
         run: |
           mkdir InstanSeg
-          cp run_instanseg_fiji.py \
+          cp Run_Instanseg_Fiji.py \
              _instanseg_runner.py \
              pixi.toml \
              pixi.lock \
-             install.bat \
-             install.sh \
              README.md \
              InstanSeg/
           zip -r InstanSeg.zip InstanSeg/
