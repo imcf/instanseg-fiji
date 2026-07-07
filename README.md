@@ -40,7 +40,7 @@ The plugin uses [Appose](https://github.com/apposed/appose) to build and run a s
            └── pixi.lock
    ```
 
-2. **Restart Fiji.** The plugin will appear under *Plugins → InstanSeg → run instanseg fiji*,
+2. **Restart Fiji.** The plugin will appear under *Plugins → InstanSeg → Run Instanseg Fiji*,
 or by searching "**run instanseg**" in the Fiji search bar.
 
 The first time you run the plugin, Appose downloads its own copy of pixi and builds the Python environment (Python 3.11, PyTorch, InstanSeg, Bio-Formats, and everything else in `pixi.toml`), which can take several minutes and is shown in the Fiji Log window. Every run after that reuses the same environment and starts instantly, since Appose detects nothing has changed and skips rebuilding it.
@@ -49,7 +49,7 @@ The environment is built **outside** the Fiji plugins folder so it does not inte
 
 | Platform | Environment location |
 | --- | --- |
-| Windows | `C:\Users\<you>\AppData\Roaming\InstanSeg\` |
+| Windows | `C:\Users\<USERNAME>\AppData\Roaming\InstanSeg\` |
 | Linux / macOS | `~/.instanseg/` |
 
 If you already have your own InstanSeg Python installation (pixi, conda, or venv), you can skip all of the above and paste its root path into the **Environment path** field in the script parameter window instead.
