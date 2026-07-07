@@ -20,6 +20,7 @@ Place the entire InstanSeg/ folder in:
   Fiji.app/plugins/
 """
 
+import json
 import os
 import shutil
 import tempfile
@@ -61,17 +62,58 @@ def timed_log(message, as_string=False):
     IJ.log(formatted)
 
 
-def log_worker_debug(message):
-    """Forward Appose service/worker debug output to the console.
-
-    Falls back to an ASCII-safe encoding since Windows consoles are often
-    stuck on a legacy codepage (e.g. cp850) that can't print every character
-    pixi or Python might emit.
+def safe_print(text):
+    """Print text to the console, falling back to an ASCII-safe encoding
+    since Windows consoles are often stuck on a legacy codepage (e.g. cp850)
+    that can't print every character pixi or Python might emit.
     """
     try:
-        print(message)
+        print(text)
     except UnicodeEncodeError:
-        print(message.encode("ascii", "backslashreplace"))
+        print(text.encode("ascii", "backslashreplace"))
+
+
+def format_protocol_message(body):
+    """Turn a raw Appose service<->worker JSON protocol line into a short,
+    readable summary for developers, instead of a raw blob with the full
+    task UUID and inputs/outputs payload."""
+    try:
+        payload = json.loads(body)
+    except ValueError:
+        return body
+
+    task_id = payload.get("task") or ""
+    short_id = task_id[:8] if task_id else "--------"
+    kind = payload.get("requestType") or payload.get("responseType") or "?"
+
+    if kind == "EXECUTE":
+        detail = "inputs={}".format(payload.get("inputs"))
+    elif kind == "UPDATE":
+        detail = payload.get("message") or ""
+    elif kind == "COMPLETION":
+        detail = "outputs={}".format(payload.get("outputs"))
+    elif kind == "FAILURE":
+        detail = payload.get("error") or ""
+    else:
+        detail = ""
+
+    return "task {}  {:<10} {}".format(short_id, kind, detail).rstrip()
+
+
+def log_debug(message):
+    """Forward Appose service/worker debug output to the console.
+
+    [SERVICE-n] lines are the raw JSON protocol traffic between Java and the
+    worker process; reformatted here into a short readable summary rather
+    than a raw JSON blob, since that's useful for development/debugging but
+    looks messy printed as-is. [WORKER-n] lines are the worker process's own
+    stdout/stderr and are printed unchanged.
+    """
+    if message.startswith("[SERVICE-"):
+        prefix, _, body = message.partition("] ")
+        safe_print(prefix + "] " + format_protocol_message(body))
+    else:
+        safe_print(message)
 
 
 def log_task_progress(event):
@@ -186,8 +228,8 @@ def main():
             env = (
                 Appose.pixi(pixi_toml_path)
                 .base(env_dir)
-                .subscribeOutput(log_worker_debug)
-                .subscribeError(log_worker_debug)
+                .subscribeOutput(log_debug)
+                .subscribeError(log_debug)
                 .subscribeProgress(log_build_progress)
                 .build()
             )
@@ -283,7 +325,7 @@ def main():
     # Launch the worker process and run the task
     service = env.python()
     service.init(init_script)
-    service.debug(log_worker_debug)
+    service.debug(log_debug)
 
     task = service.task(worker_script, inputs)
     task.listen(log_task_progress)
