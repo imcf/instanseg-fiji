@@ -22,7 +22,7 @@ After enabling the MorphoLibJ site, click **Apply changes** and restart Fiji.
 
 ### Appose
 
-The plugin uses [Appose](https://github.com/apposed/appose) to build and run a self-contained Python environment with InstanSeg and all its dependencies. Make sure the Appose jar (`appose-*.jar`) is present in Fiji's `jars/` folder.
+The plugin uses [Appose](https://github.com/apposed/appose) to build and run a self-contained Python environment with InstanSeg and all its dependencies. Make sure the [Appose jar](https://mvnrepository.com/artifact/org.apposed/appose) (`appose-*.jar`) is present in Fiji's `jars/` folder.
 
 ---
 
