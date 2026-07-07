@@ -4,21 +4,21 @@ All notable changes to this project will be documented here.
 
 ---
 
-## [0.4.0] - 2026-07-07
+## [0.4.1] - 2026-07-07
 
-### ✨ Added (0.4.0)
+### ✨ Added (0.4.1)
 
 - Migrated from `subprocess`/`ProcessBuilder` to [Appose](https://github.com/apposed/appose) for running InstanSeg
 - Python environment now builds itself automatically on first run — no more manual `install.sh`/`install.bat` step
 - `Environment path` override now accepts any environment type Appose can detect (pixi, conda/mamba, venv)
 
-### 🔄 Changed (0.4.0)
+### 🔄 Changed (0.4.1)
 
 - `_instanseg_runner.py` is now an importable function (`run_instanseg()`) instead of an `argparse` CLI script
 - Errors now propagate as real Python exceptions with full tracebacks, shown directly in Fiji
 - Main plugin script renamed to `Run_Instanseg_Fiji.py` for consistent display in the Fiji menu
 
-### 🐛 Fixed
+### 🐛 Fixed (0.4.1)
 
 - `OMP: Error #15` crash from PyTorch and numpy both initializing OpenMP
 - Bio-Formats failing to read any file due to a JVM/import ordering bug
