@@ -31,15 +31,15 @@ from ij.plugin.frame import RoiManager  # pyright: ignore[reportMissingImports]
 from org.apposed.appose import Appose  # pyright: ignore[reportMissingImports]
 
 # Renew SciJava parameter variables to suppress Jython name warnings
-image_path = str(image_path.getAbsolutePath()).strip() if image_path else ""
-results_dir = str(results_dir.getAbsolutePath()).strip() if results_dir else ""
-pixel_size = float(pixel_size)
-model_type = str(model_type)
-nuclei_channel = int(nuclei_channel) 
-cells_channel = int(cells_channel)
-seg_z_slice = int(seg_z_slice)
-device = str(device)
-env_path_override = str(env_path_override).strip()
+image_path = str(image_path.getAbsolutePath()).strip() if image_path else ""  # type: ignore
+results_dir = str(results_dir.getAbsolutePath()).strip() if results_dir else ""  # type: ignore
+pixel_size = float(pixel_size)  # type: ignore
+model_type = str(model_type)  # type: ignore
+nuclei_channel = int(nuclei_channel)  # type: ignore
+cells_channel = int(cells_channel)  # type: ignore
+seg_z_slice = int(seg_z_slice)  # type: ignore
+device = str(device)  # type: ignore
+env_path_override = str(env_path_override).strip()  # type: ignore
 
 
 def timed_log(message, as_string=False):
@@ -205,7 +205,8 @@ def main():
             env = Appose.wrap(env_dir)
         except Exception as e:
             IJ.error(
-                "InstanSeg", "Could not use environment at:\n" + env_dir + "\n\n" + str(e)
+                "InstanSeg",
+                "Could not use environment at:\n" + env_dir + "\n\n" + str(e),
             )
             raise SystemExit("Environment not usable")
     else:
@@ -223,7 +224,9 @@ def main():
         if os.path.isfile(pixi_lock_path):
             shutil.copyfile(pixi_lock_path, os.path.join(env_dir, "pixi.lock"))
 
-        timed_log("preparing InstanSeg environment (first run can take a few minutes)...")
+        timed_log(
+            "preparing InstanSeg environment (first run can take a few minutes)..."
+        )
         try:
             env = (
                 Appose.pixi(pixi_toml_path)
@@ -234,7 +237,10 @@ def main():
                 .build()
             )
         except Exception as e:
-            IJ.error("InstanSeg", "Could not build environment at:\n" + env_dir + "\n\n" + str(e))
+            IJ.error(
+                "InstanSeg",
+                "Could not build environment at:\n" + env_dir + "\n\n" + str(e),
+            )
             raise SystemExit("Environment build failed")
 
     # Open the image in Fiji
