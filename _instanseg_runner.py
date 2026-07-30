@@ -15,10 +15,16 @@ the command line for testing:
 """
 
 import os
+import tifffile  # type: ignore
 
 # Fix OpenMP conflict between PyTorch and numpy on Windows (libiomp5md.dll vs libomp.dll)
 # Must be set before torch/numpy are imported
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
+import numpy as np
+from bioio import BioImage  # type: ignore
+import bioio_bioformats  # type: ignore
+from instanseg import InstanSeg  # type: ignore
 
 
 def _notify(task, message):
@@ -41,9 +47,6 @@ def _prepare_input(image_path, nuclei_ch, cells_ch, z_slice=0):
 
     Returns (image_array, pixel_size_um).
     """
-    import numpy as np
-    from bioio import BioImage
-    import bioio_bioformats
 
     img = BioImage(image_path, reader=bioio_bioformats.Reader)
     pixel_size = img.physical_pixel_sizes.X  # um/px, may be None
@@ -100,7 +103,6 @@ def run_instanseg(
     Any errors are simply raised - when called as an Appose task, Appose
     reports the exception back to the caller as a task failure automatically.
     """
-    import tifffile
 
     if nuclei_channel == 0 and cells_channel == 0:
         raise ValueError("Both nuclei_channel and cells_channel are 0, nothing to do")
@@ -110,8 +112,6 @@ def run_instanseg(
 
     _notify(task, "Image: " + os.path.basename(image))
     _notify(task, "Model: " + model + "  |  Device: " + device)
-
-    from instanseg import InstanSeg
 
     os.makedirs(output_dir, exist_ok=True)
 
@@ -186,11 +186,17 @@ def _main():
     parser.add_argument("--model", default="fluorescence_nuclei_and_cells")
     parser.add_argument("--pixel-size", type=float, default=None, dest="pixel_size")
     parser.add_argument(
-        "--nuclei-channel", type=int, default=1, dest="nuclei_channel",
+        "--nuclei-channel",
+        type=int,
+        default=1,
+        dest="nuclei_channel",
         help="1-based input channel for nuclei. 0 = do not output nuclei labels.",
     )
     parser.add_argument(
-        "--cells-channel", type=int, default=1, dest="cells_channel",
+        "--cells-channel",
+        type=int,
+        default=1,
+        dest="cells_channel",
         help="1-based input channel for cells. 0 = do not output cell labels.",
     )
     parser.add_argument("--z-slice", type=int, default=0, dest="z_slice")
