@@ -22,6 +22,7 @@ import tifffile  # type: ignore
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 import numpy as np
+import torch  # type: ignore
 from bioio import BioImage  # type: ignore
 import bioio_bioformats  # type: ignore
 from instanseg import InstanSeg  # type: ignore
@@ -106,6 +107,10 @@ def run_instanseg(
 
     if nuclei_channel == 0 and cells_channel == 0:
         raise ValueError("Both nuclei_channel and cells_channel are 0, nothing to do")
+
+    if device == "cuda" and not torch.cuda.is_available():
+        _notify(task, "WARNING: no CUDA GPU available, using CPU instead")
+        device = "cpu"
 
     if device == "cpu":
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
