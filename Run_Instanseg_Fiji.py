@@ -169,6 +169,28 @@ def save_open_image_to_temp(imp):
     return temp_path
 
 
+def close_service(service):
+    """Shut down the Appose worker process.
+
+    Each run starts its own worker; without this it stays alive holding torch
+    and a JVM in memory until Fiji is closed.
+    """
+    try:
+        service.close()
+    except Exception as e:
+        print("could not close worker process: " + str(e))
+
+
+def remove_temp_dir(path):
+    """Delete a temporary directory. Failures are only reported, not raised,
+    since a leftover temp folder should never abort a successful run."""
+    try:
+        shutil.rmtree(path)
+        print("removed temp dir: " + path)
+    except Exception as e:
+        print("could not remove temp dir " + path + ": " + str(e))
+
+
 def get_label_value(label_imp, roi):
     """Return the label ID the given ROI was created from.
 
@@ -405,6 +427,11 @@ def main():
     except Exception as e:
         IJ.error("InstanSeg", "Inference failed:\n" + str(e))
         raise SystemExit("Runner failed")
+    finally:
+        close_service(service)
+        # The temp TIFF was only needed to hand the open image to the worker.
+        if use_open_image:
+            remove_temp_dir(os.path.dirname(effective_image_path))
 
     # Read label paths from the task outputs
     nuclei_path = task.outputs.get("nuclei_path")
