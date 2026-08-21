@@ -13,7 +13,7 @@
 """
 InstanSeg segmentation plugin for Fiji.
 
-Runs the _instanseg_runner.py helper as an Appose task. Appose builds the pixi
+Runs the iseg_helper.py helper as an Appose task. Appose builds the pixi
 environment itself from the pixi.toml bundled alongside this script, the first
 time the plugin is used, and reuses it on every later run.
 
@@ -144,8 +144,7 @@ def get_instanseg_env_dir():
 
 
 def sanitize_filename(name):
-    """Replace characters that are unsafe in a filename with underscores.
-    """
+    """Replace characters that are unsafe in a filename with underscores."""
     safe = ""
     for character in name:
         if character.isalnum() or character in "-_.":
@@ -161,8 +160,7 @@ def save_open_image_to_temp(imp):
     """Write an already-open ImagePlus to a temporary TIFF and return its path.
 
     The runner only accepts file paths, so an image that is open in Fiji
-    (possibly unsaved, cropped or otherwise modified) has to be handed over as
-    a file on disk.
+    has to be handed over as a file.
     """
     temp_dir = tempfile.mkdtemp(prefix="instanseg_input_")
     base = os.path.splitext(imp.getTitle())[0]
@@ -186,8 +184,7 @@ def get_label_value(label_imp, roi):
 def open_label_with_rois(path, title, roi_prefix):
     """Open a label TIFF, apply a colour LUT, and convert labels to ROIs via MorphoLibJ.
 
-    ROIs are named after the label value they came from (e.g. `nucleus_17`),
-    so an ROI can always be traced back to its object in the label image.
+    ROIs are named after the label value they came from (e.g. `nucleus_17`).
     """
     label_imp = IJ.openImage(path)
     if label_imp is None:
@@ -222,7 +219,7 @@ def open_label_with_rois(path, title, roi_prefix):
 
 def main():
     # The open image is resolved up front so a missing one fails before the
-    # (potentially minutes-long) environment build.
+    # (long) environment build.
     open_imp = None
     if use_open_image:
         open_imp = WindowManager.getCurrentImage()
@@ -247,13 +244,11 @@ def main():
         raise SystemExit("Nothing to segment")
 
     script_dir = os.path.join(IJ.getDirectory("plugins"), "InstanSeg")
-    runner_path = os.path.join(script_dir, "_instanseg_runner.py")
+    runner_path = os.path.join(script_dir, "iseg_helper.py")
 
     if not os.path.isfile(runner_path):
-        IJ.error(
-            "InstanSeg", "Cannot find _instanseg_runner.py.\nExpected: " + runner_path
-        )
-        raise SystemExit("instanseg_runner.py not found")
+        IJ.error("InstanSeg", "Cannot find iseg_helper.py.\nExpected: " + runner_path)
+        raise SystemExit("iseg_helper.py not found")
 
     # Get the InstanSeg environment, building it with Appose if needed.
     # A custom environment path is just wrapped as-is. The bundled environment
@@ -360,7 +355,7 @@ def main():
         "import scyjava\n"
         "scyjava.start_jvm()\n"
         "from instanseg import InstanSeg\n"
-        "from _instanseg_runner import run_instanseg\n"
+        "from iseg_helper import run_instanseg\n"
     ).format(plugin_dir=script_dir)
 
     # Build the Appose task
