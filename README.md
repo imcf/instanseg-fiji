@@ -1,6 +1,6 @@
 # InstanSeg Fiji Plugin
 
-A thin wrapper around [InstanSeg](https://github.com/instanseg) (Goldsborough et al., 2024) that makes the model runnable directly from the Fiji GUI. The Jython plugin (`run_instanseg_fiji.py`) collects parameters from a dialog, then uses [Appose](https://github.com/apposed/appose) to run `_instanseg_runner.py` inside the InstanSeg pixi environment and get the label TIFFs back. Fiji then opens the labels, converts them to ROIs via MorphoLibJ, and shows them in the ROI Manager.
+A thin wrapper around [InstanSeg](https://github.com/instanseg) (Goldsborough et al., 2024) that makes the model runnable directly from the Fiji GUI. The Jython plugin (`Run_Instanseg_Fiji.py`) collects parameters from a dialog, then uses [Appose](https://github.com/apposed/appose) to run `iseg_helper.py` inside the InstanSeg pixi environment and get the label TIFFs back. Fiji then opens the labels, converts them to ROIs via MorphoLibJ, and shows them in the ROI Manager.
 
 ---
 
@@ -34,8 +34,8 @@ The plugin uses [Appose](https://github.com/apposed/appose) to build and run a s
    Fiji.app/
    └── plugins/
        └── InstanSeg/
-           ├── run_instanseg_fiji.py
-           ├── _instanseg_runner.py
+           ├── Run_Instanseg_Fiji.py
+           ├── iseg_helper.py
            ├── pixi.toml
            └── pixi.lock
    ```
