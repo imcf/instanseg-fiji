@@ -63,7 +63,8 @@ If you already have your own InstanSeg Python installation (pixi, conda, or venv
 
 | Parameter | Description |
 | --- | --- |
-| **Image path** | Path to the input image (any format supported by Bio-Formats: `.tif`, `.nd2`, `.czi`, `.lif`, …) |
+| **Use currently open image** | Segment the image currently active in Fiji instead of loading one from disk. Overrides **Image path** when ticked. The active image is written to a temporary TIFF (keeping its window title as the filename) and handed to the model, so unsaved edits, crops and adjustments are included. |
+| **Image path** | Path to the input image (any format supported by Bio-Formats: `.tif`, `.nd2`, `.czi`, `.lif`, …). Ignored when **Use currently open image** is ticked. |
 | **Results folder** | Folder where label TIFFs and `RoiSet.zip` will be saved |
 | **Model** | `fluorescence_nuclei_and_cells` for fluorescence images; `brightfield_nuclei` for brightfield |
 | **Pixel size (µm/px)** | Leave at `0` to read automatically from image metadata (recommended). Override only if the metadata is missing or wrong. |
@@ -76,7 +77,7 @@ If you already have your own InstanSeg Python installation (pixi, conda, or venv
 1. Click **OK**. Progress is shown in the **Fiji Log** window (The *console* has more detailed debug outputs). After inference:
    - The input image is opened in Fiji.
    - Label images (`_nuclei_labels.tif`, `_cell_labels.tif`) are saved to the results folder and opened with a 16-colour LUT.
-   - ROIs are added to the **ROI Manager** (named `nucleus_roi_1`, `nucleus_roi_2`, … / `cell_roi_1`, …).
+   - ROIs are added to the **ROI Manager**, each named after its label value in the corresponding label image (`nucleus_1`, `nucleus_2`, … / `cell_1`, …), so an ROI can be matched back to the object it came from.
    - A `<imagename>_RoiSet.zip` is saved to the results folder.
 
 ---
