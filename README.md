@@ -49,7 +49,7 @@ The environment is built **outside** the Fiji plugins folder so it does not inte
 
 | Platform | Environment location |
 | --- | --- |
-| Windows | `C:\Users\<USERNAME>\AppData\Roaming\InstanSeg\` |
+| Windows | `C:\Users\<USERNAME>\AppData\Local\InstanSeg\` |
 | Linux / macOS | `~/.instanseg/` |
 
 If you already have your own InstanSeg Python installation (pixi, conda, or venv), you can skip all of the above and paste its root path into the **Environment path** field in the script parameter window instead.
