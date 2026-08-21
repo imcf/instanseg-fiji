@@ -7,7 +7,7 @@
 # @ Integer(label="Nuclei channel (1-based, 0 = skip)", value=1) nuclei_channel
 # @ Integer(label="Cells channel (1-based, 0 = skip)", value=1) cells_channel
 # @ Integer(label="Z-slice (1-based, 0 = max projection)", value=0) seg_z_slice
-# @ String(label="Device", value="cpu", choices={"cpu", "cuda", "mps"}) device
+# @ String(label="Device", value="cpu", choices={"cpu", "cuda"}) device
 # @ String(label="Environment path (leave blank for bundled pixi env)", value="") env_path_override
 
 """
