@@ -1,11 +1,11 @@
 """
 InstanSeg inference helper script.
 
-Called from the Fiji Jython plugin (run_instanseg_fiji.py) as an Appose task,
+Called from the Fiji Jython plugin (Run_Instanseg_Fiji.py) as an Appose task,
 running inside the InstanSeg pixi environment. Can also be run standalone from
 the command line for testing:
 
-    python _instanseg_runner.py --image /path/to/image.tif \
+    python iseg_helper.py --image /path/to/image.tif \
                                --output-dir /tmp/instanseg_out \
                                --model fluorescence_nuclei_and_cells \
                                --nuclei-channel 1 \
