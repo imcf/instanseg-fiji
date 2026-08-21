@@ -28,7 +28,18 @@ The plugin uses [Appose](https://github.com/apposed/appose) to build and run a s
 
 ## Installation
 
-1. From the latest release, **download and extract the ZIP.** You will get an `InstanSeg/` folder. Move the entire folder into Fiji's `plugins/` directory so the result looks like this:
+1. From the latest release, **download and extract `InstanSeg.zip`.** Most unzip tools create a folder named after the zip, so you end up with an `InstanSeg/` folder containing *another* `InstanSeg/` folder:
+
+   ```text
+   InstanSeg/          <- ignore
+   └── InstanSeg/      <- move THIS one into Fiji's plugins/ folder
+       ├── Run_Instanseg_Fiji.py
+       ├── iseg_helper.py
+       ├── pixi.toml
+       └── pixi.lock
+   ```
+
+   Move the **inner** folder (the one that directly contains the `.py` files) into Fiji's `plugins/` directory, so the result looks like this:
 
    ```text
    Fiji.app/
