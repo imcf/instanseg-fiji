@@ -4,6 +4,30 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [0.5.0] - 2026-08-21
+
+### ✨ Added (0.5.0)
+
+- Segment the image already open in Fiji instead of loading one from disk
+
+### 🔄 Changed (0.5.0)
+
+- Helper script renamed to `iseg_helper.py` so it no longer shows up when searching "instanseg" in Fiji
+- `cuda` now falls back to `cpu` with a warning when no GPU is available
+
+### 🐛 Fixed (0.5.0)
+
+- Python worker process closes after each run instead of staying in memory
+- Temporary TIFF written for the open image is deleted after the run
+- ROI Manager is cleared before each run, so the saved `RoiSet.zip` only holds that run's ROIs
+
+### 🗑️ Removed (0.5.0)
+
+- `install.sh` and `install.bat`, unused since Appose builds the environment itself
+- `mps` device option
+
+---
+
 ## [0.4.1] - 2026-07-07
 
 ### ✨ Added (0.4.1)
