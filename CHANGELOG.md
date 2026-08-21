@@ -4,6 +4,16 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [0.5.1] - 2026-08-21
+
+A patch on top of [0.5.0](https://github.com/imcf/instanseg-fiji/releases/tag/v0.5.0), which it also includes.
+
+### 🔄 Changed (0.5.1)
+
+- Windows environment moved from `%APPDATA%` (roaming) to `%LOCALAPPDATA%`, so it stays on the local disk on managed networks — it will be rebuilt once on first run
+
+---
+
 ## [0.5.0] - 2026-08-21
 
 ### ✨ Added (0.5.0)
@@ -14,7 +24,6 @@ All notable changes to this project will be documented here.
 
 - Helper script renamed to `iseg_helper.py` so it no longer shows up when searching "instanseg" in Fiji
 - `cuda` now falls back to `cpu` with a warning when no GPU is available
-- Windows environment moved from `%APPDATA%` (roaming) to `%LOCALAPPDATA%`, so it stays on the local disk on managed networks — it will be rebuilt once on first run
 
 ### 🐛 Fixed (0.5.0)
 
