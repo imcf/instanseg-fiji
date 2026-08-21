@@ -63,7 +63,7 @@ If you already have your own InstanSeg Python installation (pixi, conda, or venv
 
 | Parameter | Description |
 | --- | --- |
-| **Use currently open image** | Segment the image currently active in Fiji instead of loading one from disk. Overrides **Image path** when ticked. The active image is written to a temporary TIFF (keeping its window title as the filename) and handed to the model, so unsaved edits, crops and adjustments are included. |
+| **Use currently open image** | Segment the image currently active in Fiji instead of loading one from disk. Overrides **Image path** when ticked. The active image is written to a temporary TIFF (keeping its window title as the filename) and handed to the model. |
 | **Image path** | Path to the input image (any format supported by Bio-Formats: `.tif`, `.nd2`, `.czi`, `.lif`, …). Ignored when **Use currently open image** is ticked. |
 | **Results folder** | Folder where label TIFFs and `RoiSet.zip` will be saved |
 | **Model** | `fluorescence_nuclei_and_cells` for fluorescence images; `brightfield_nuclei` for brightfield |
