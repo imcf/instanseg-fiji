@@ -443,6 +443,11 @@ def main():
         )
         raise SystemExit("No labels returned")
 
+    # Clear out any earlier ROIs so the saved zip holds only this run's
+    rm = RoiManager.getInstance()
+    if rm is not None:
+        rm.reset()
+
     # Open labels and convert to ROIs
     if nuclei_path:
         open_label_with_rois(nuclei_path, "Nuclei labels", "nucleus")
@@ -450,14 +455,13 @@ def main():
         open_label_with_rois(cells_path, "Cell labels", "cell")
 
     rm = RoiManager.getInstance()
-    if rm is not None:
+    if rm is not None and rm.getCount() > 0:
         rm.setVisible(True)
-        if rm.getCount() > 0:
-            base = os.path.splitext(os.path.basename(effective_image_path))[0]
-            roi_zip = os.path.join(output_dir, base + "_RoiSet.zip")
-            rm.runCommand("Deselect")
-            rm.runCommand("Save", roi_zip)
-            timed_log("ROIs saved to " + roi_zip)
+        base = os.path.splitext(os.path.basename(effective_image_path))[0]
+        roi_zip = os.path.join(output_dir, base + "_RoiSet.zip")
+        rm.runCommand("Deselect")
+        rm.runCommand("Save", roi_zip)
+        timed_log("{} ROIs saved to {}".format(rm.getCount(), roi_zip))
 
     timed_log("Finished.")
 
