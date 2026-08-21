@@ -1,5 +1,6 @@
 # @ String (visibility=MESSAGE, value="<html><b> Fiji plugin for InstanSeg</b></html>") msg1
-# @ File(label="Image path", style="open") image_path
+# @ Boolean(label="Use currently open image (overrides image path)", value=false) use_open_image
+# @ File(label="Image path", style="open", required=false) image_path
 # @ File(label="Results folder", style="directory") results_dir
 # @ String(label="Model", value="fluorescence_nuclei_and_cells", choices={"fluorescence_nuclei_and_cells", "brightfield_nuclei"}) model_type
 # @ Double(label="Pixel size (um/px, 0 = read from metadata)", value=0.0) pixel_size
@@ -27,10 +28,13 @@ import tempfile
 import time
 
 from ij import IJ  # pyright: ignore[reportMissingImports]
+from ij import WindowManager  # pyright: ignore[reportMissingImports]
+from ij.measure import Measurements  # pyright: ignore[reportMissingImports]
 from ij.plugin.frame import RoiManager  # pyright: ignore[reportMissingImports]
 from org.apposed.appose import Appose  # pyright: ignore[reportMissingImports]
 
 # Renew SciJava parameter variables to suppress Jython name warnings
+use_open_image = bool(use_open_image)  # type: ignore
 image_path = str(image_path.getAbsolutePath()).strip() if image_path else ""  # type: ignore
 results_dir = str(results_dir.getAbsolutePath()).strip() if results_dir else ""  # type: ignore
 pixel_size = float(pixel_size)  # type: ignore
@@ -139,8 +143,52 @@ def get_instanseg_env_dir():
     return os.path.join(os.path.expanduser("~"), ".instanseg")
 
 
+def sanitize_filename(name):
+    """Replace characters that are unsafe in a filename with underscores.
+    """
+    safe = ""
+    for character in name:
+        if character.isalnum() or character in "-_.":
+            safe = safe + character
+        else:
+            safe = safe + "_"
+    if not safe:
+        safe = "image"
+    return safe
+
+
+def save_open_image_to_temp(imp):
+    """Write an already-open ImagePlus to a temporary TIFF and return its path.
+
+    The runner only accepts file paths, so an image that is open in Fiji
+    (possibly unsaved, cropped or otherwise modified) has to be handed over as
+    a file on disk.
+    """
+    temp_dir = tempfile.mkdtemp(prefix="instanseg_input_")
+    base = os.path.splitext(imp.getTitle())[0]
+    temp_path = os.path.join(temp_dir, sanitize_filename(base) + ".tif")
+    IJ.saveAsTiff(imp, temp_path)
+    return temp_path
+
+
+def get_label_value(label_imp, roi):
+    """Return the label ID the given ROI was created from.
+
+    MorphoLibJ produces exactly one ROI per label, so the most common pixel
+    value inside the ROI is that label's ID in the label image.
+    """
+    label_imp.setRoi(roi)
+    stats = label_imp.getStatistics(Measurements.MODE)
+    label_imp.deleteRoi()
+    return int(stats.dmode)
+
+
 def open_label_with_rois(path, title, roi_prefix):
-    """Open a label TIFF, apply a colour LUT, and convert labels to ROIs via MorphoLibJ."""
+    """Open a label TIFF, apply a colour LUT, and convert labels to ROIs via MorphoLibJ.
+
+    ROIs are named after the label value they came from (e.g. `nucleus_17`),
+    so an ROI can always be traced back to its object in the label image.
+    """
     label_imp = IJ.openImage(path)
     if label_imp is None:
         timed_log("WARNING - could not open " + path)
@@ -164,7 +212,8 @@ def open_label_with_rois(path, title, roi_prefix):
         return
     count_after = rm.getCount()
     for i in range(count_before, count_after):
-        rm.getRoi(i).setName(roi_prefix + "_roi_" + str(i - count_before + 1))
+        label_value = get_label_value(label_imp, rm.getRoi(i))
+        rm.rename(i, roi_prefix + "_" + str(label_value))
     timed_log(
         "{} {} ROIs added to ROI Manager".format(count_after - count_before, roi_prefix)
     )
@@ -172,7 +221,19 @@ def open_label_with_rois(path, title, roi_prefix):
 
 
 def main():
-    if not image_path or not os.path.isfile(image_path):
+    # The open image is resolved up front so a missing one fails before the
+    # (potentially minutes-long) environment build.
+    open_imp = None
+    if use_open_image:
+        open_imp = WindowManager.getCurrentImage()
+        if open_imp is None:
+            IJ.error(
+                "InstanSeg",
+                "No image is currently open in Fiji.\n"
+                "Open one, or untick 'Use currently open image'.",
+            )
+            raise SystemExit("No open image")
+    elif not image_path or not os.path.isfile(image_path):
         IJ.error(
             "InstanSeg", "Image file not found:\n" + (image_path or "<none selected>")
         )
@@ -243,13 +304,21 @@ def main():
             )
             raise SystemExit("Environment build failed")
 
-    # Open the image in Fiji
-    timed_log("opening " + os.path.basename(image_path))
-    imp = IJ.openImage(image_path)
-    if imp is None:
-        IJ.error("InstanSeg", "Could not open image:\n" + image_path)
-        raise SystemExit("Could not open image")
-    imp.show()
+    # Resolve the image to segment. The runner takes a path either way, so an
+    # already-open image is written to a temp TIFF first.
+    if use_open_image:
+        imp = open_imp
+        timed_log("using open image: " + imp.getTitle())
+        effective_image_path = save_open_image_to_temp(imp)
+        print("open image written to: " + effective_image_path)
+    else:
+        timed_log("opening " + os.path.basename(image_path))
+        imp = IJ.openImage(image_path)
+        if imp is None:
+            IJ.error("InstanSeg", "Could not open image:\n" + image_path)
+            raise SystemExit("Could not open image")
+        imp.show()
+        effective_image_path = image_path
 
     # Resolve effective pixel size
     # Priority: dialog value > Fiji calibration > let the runner read from metadata
@@ -312,7 +381,7 @@ def main():
     )
 
     inputs = {
-        "image": image_path,
+        "image": effective_image_path,
         "output_dir": output_dir,
         "model": model_type,
         "nuclei_channel": nuclei_channel,
@@ -362,7 +431,7 @@ def main():
     if rm is not None:
         rm.setVisible(True)
         if rm.getCount() > 0:
-            base = os.path.splitext(os.path.basename(image_path))[0]
+            base = os.path.splitext(os.path.basename(effective_image_path))[0]
             roi_zip = os.path.join(output_dir, base + "_RoiSet.zip")
             rm.runCommand("Deselect")
             rm.runCommand("Save", roi_zip)
