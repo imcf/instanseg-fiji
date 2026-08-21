@@ -136,10 +136,14 @@ def log_build_progress(title, current, maximum):
 
 def get_instanseg_env_dir():
     """Return the directory where the InstanSeg pixi environment is expected to be found.
-    On Windows, this is %APPDATA%\InstanSeg. On Linux/Mac, this is ~/.instanseg."""
-    appdata = os.environ.get("APPDATA", "")
-    if appdata:
-        return os.path.join(appdata, "InstanSeg")
+    On Windows, this is %LOCALAPPDATA%\InstanSeg. On Linux/Mac, this is ~/.instanseg.
+
+    LOCALAPPDATA is used rather than APPDATA because roaming profiles are synced
+    between machines on managed networks, and a multi-GB Python environment
+    should stay on the local disk."""
+    localappdata = os.environ.get("LOCALAPPDATA", "")
+    if localappdata:
+        return os.path.join(localappdata, "InstanSeg")
     return os.path.join(os.path.expanduser("~"), ".instanseg")
 
 
