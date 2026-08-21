@@ -1,5 +1,5 @@
 # @ String (visibility=MESSAGE, value="<html><b> Fiji plugin for InstanSeg</b></html>") msg1
-# @ Boolean(label="Use currently open image (overrides image path)", value=false) use_open_image
+# @ Boolean(label="Use currently open image (must be a 2D image!)", value=false) use_open_image
 # @ File(label="Image path", style="open", required=false) image_path
 # @ File(label="Results folder", style="directory") results_dir
 # @ String(label="Model", value="fluorescence_nuclei_and_cells", choices={"fluorescence_nuclei_and_cells", "brightfield_nuclei"}) model_type
