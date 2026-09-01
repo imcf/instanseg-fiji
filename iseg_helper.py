@@ -131,7 +131,7 @@ def run_instanseg(
     # Pixel size: explicit argument > bioio metadata > warn
     if pixel_size is not None:
         _notify(task, "Pixel size: {} um/px (from dialog)".format(pixel_size))
-    elif metadata_pixel_size is not None:
+    elif metadata_pixel_size is not None and metadata_pixel_size > 0:
         pixel_size = metadata_pixel_size
         _notify(task, "Pixel size: {} um/px (from metadata)".format(pixel_size))
     else:
