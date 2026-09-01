@@ -4,6 +4,7 @@
 # @ File(label="Results folder", style="directory") results_dir
 # @ String(label="Model", value="fluorescence_nuclei_and_cells", choices={"fluorescence_nuclei_and_cells", "brightfield_nuclei"}) model_type
 # @ Double(label="Pixel size (um/px, 0 = read from metadata)", value=0.0) pixel_size
+# @ String (visibility=MESSAGE, value="<html><i>Results depend on pixel size. Make sure the image is calibrated, or enter pixel size here.</i></html>") msg_pixel
 # @ Integer(label="Nuclei channel (1-based, 0 = skip)", value=1) nuclei_channel
 # @ Integer(label="Cells channel (1-based, 0 = skip)", value=1) cells_channel
 # @ Integer(label="Z-slice (1-based, 0 = max projection)", value=0) seg_z_slice
@@ -27,7 +28,9 @@ import shutil
 import tempfile
 import time
 
+from java.lang import Throwable  # pyright: ignore[reportMissingImports]
 from ij import IJ  # pyright: ignore[reportMissingImports]
+from ij import Menus  # pyright: ignore[reportMissingImports]
 from ij import WindowManager  # pyright: ignore[reportMissingImports]
 from ij.measure import Measurements  # pyright: ignore[reportMissingImports]
 from ij.plugin.frame import RoiManager  # pyright: ignore[reportMissingImports]
@@ -223,11 +226,14 @@ def open_label_with_rois(path, title, roi_prefix):
     rm = RoiManager.getInstance()
     count_before = rm.getCount() if rm is not None else 0
 
+    # Clear any stale abort flag before running the command. Key press in Fiji causes this
+    IJ.resetEscape()
+
     try:
-        IJ.run(label_imp, "Label image to ROIs", "")
-    except Exception as e:
-        timed_log("MorphoLibJ not available, skipping ROI conversion (" + str(e) + ")")
-        print("MorphoLibJ error: " + str(e))
+        IJ.run(label_imp, "Label Map to ROIs", "connectivity=C4")
+    except (Exception, Throwable) as e:
+        timed_log("ROI conversion failed, skipping: " + str(e))
+        # print(command + " error: " + str(e))
         return
 
     rm = RoiManager.getInstance()
@@ -379,6 +385,9 @@ def main():
         "import tifffile\n"
         "import bioio_bioformats\n"
         "import scyjava\n"
+        # Bio-Formats' formats-gpl jar lives on the OME repository
+        "scyjava.config.add_repositories("
+        "{{'ome': 'https://artifacts.openmicroscopy.org/artifactory/maven'}})\n"
         "scyjava.start_jvm()\n"
         "from instanseg import InstanSeg\n"
         "from iseg_helper import run_instanseg\n"
