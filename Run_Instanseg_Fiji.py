@@ -229,9 +229,6 @@ def open_label_with_rois(path, title, roi_prefix):
     # Clear any stale abort flag before running the command. Key press in Fiji causes this
     IJ.resetEscape()
 
-    # A non-empty options string runs the command in macro mode, so its
-    # connectivity dialog reads these values instead of popping up and waiting
-    # for the user to click OK.
     try:
         IJ.run(label_imp, "Label Map to ROIs", "connectivity=C4")
     except (Exception, Throwable) as e:
