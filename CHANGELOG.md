@@ -4,6 +4,15 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [0.5.2] - 2026-09-01
+
+### 🐛 Fixed (0.5.2)
+
+- Bio-Formats failing to download its `formats-gpl` jar on fresh machines
+- Label-to-ROI conversion failing when MorphoLibJ named the command differently
+
+---
+
 ## [0.5.1] - 2026-08-21
 
 A patch on top of [0.5.0](https://github.com/imcf/instanseg-fiji/releases/tag/v0.5.0), which it also includes.
