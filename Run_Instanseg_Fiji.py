@@ -5,6 +5,7 @@
 # @ String(label="Model", value="fluorescence_nuclei_and_cells", choices={"fluorescence_nuclei_and_cells", "brightfield_nuclei"}) model_type
 # @ Double(label="Pixel size (um/px, 0 = read from metadata)", value=0.0) pixel_size
 # @ String (visibility=MESSAGE, value="<html><i>Results depend on pixel size. Make sure the image is calibrated, or enter pixel size here.</i></html>") msg_pixel
+# @ Boolean(label="Use all channels (ignores the two channel fields below)", value=false) use_all_channels
 # @ Integer(label="Nuclei channel (1-based, 0 = skip)", value=1) nuclei_channel
 # @ Integer(label="Cells channel (1-based, 0 = skip)", value=1) cells_channel
 # @ Integer(label="Z-slice (1-based, 0 = max projection)", value=0) seg_z_slice
@@ -42,6 +43,7 @@ image_path = str(image_path.getAbsolutePath()).strip() if image_path else ""  # 
 results_dir = str(results_dir.getAbsolutePath()).strip() if results_dir else ""  # type: ignore
 pixel_size = float(pixel_size)  # type: ignore
 model_type = str(model_type)  # type: ignore
+use_all_channels = bool(use_all_channels)  # type: ignore
 nuclei_channel = int(nuclei_channel)  # type: ignore
 cells_channel = int(cells_channel)  # type: ignore
 seg_z_slice = int(seg_z_slice)  # type: ignore
@@ -268,7 +270,7 @@ def main():
         )
         raise SystemExit("Image not found")
 
-    if nuclei_channel == 0 and cells_channel == 0:
+    if not use_all_channels and nuclei_channel == 0 and cells_channel == 0:
         IJ.error(
             "InstanSeg",
             "Both nuclei and cells channels are set to 0.\nSet at least one to a valid channel.",
@@ -406,6 +408,7 @@ def main():
         "    z_slice=z_slice,\n"
         "    device=device,\n"
         "    pixel_size=pixel_size,\n"
+        "    use_all_channels=use_all_channels,\n"
         "    task=task,\n"
         ")\n"
     )
@@ -419,11 +422,16 @@ def main():
         "z_slice": seg_z_slice,
         "device": device,
         "pixel_size": effective_pixel_size if effective_pixel_size > 0.0 else None,
+        "use_all_channels": use_all_channels,
     }
 
+    if use_all_channels:
+        channel_info = "all channels"
+    else:
+        channel_info = "nuclei_ch={}, cells_ch={}".format(nuclei_channel, cells_channel)
     timed_log(
-        "running inference  [model={}, device={}, nuclei_ch={}, cells_ch={}]".format(
-            model_type, device, nuclei_channel, cells_channel
+        "running inference  [model={}, device={}, {}]".format(
+            model_type, device, channel_info
         )
     )
 
