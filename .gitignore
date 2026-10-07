@@ -56,3 +56,4 @@ ipython_config.py
 *.tif
 instanseg_test.py
 CLAUDE.md
+*.unison.tmp
