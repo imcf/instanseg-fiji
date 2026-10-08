@@ -79,8 +79,9 @@ If you already have your own InstanSeg Python installation (pixi, conda, or venv
 | **Results folder** | Folder where label TIFFs and `RoiSet.zip` will be saved |
 | **Model** | `fluorescence_nuclei_and_cells` for fluorescence images; `brightfield_nuclei` for brightfield |
 | **Pixel size (µm/px)** | Leave at `0` to read automatically from image metadata (recommended). Override only if the metadata is missing or wrong. |
-| **Nuclei channel** | 1-based channel index of the nuclear marker (e.g. DAPI). Set to `0` to skip nuclei output. |
-| **Cells channel** | 1-based channel index of the cell body/membrane marker. Set to `0` to skip cell output. Set equal to Nuclei channel to use the same channel for both. |
+| **Use all channels** | Pass every channel to the model. Ignores the two channel fields; both outputs are saved. |
+| **Nuclei channel** | 1-based channel to include (e.g. DAPI). `0` = skip nuclei output. |
+| **Cells channel** | 1-based channel to include (e.g. membrane marker). `0` = skip cell output. |
 | **Z-slice** | `0` = max-project across all Z-slices (default). Any other value selects that specific Z-slice (1-based). |
 | **Device** | `cpu` (always works) or `cuda` (NVIDIA GPU). CUDA requires a compatible GPU and the corresponding CUDA toolkit. The pixi environment install 11.8 by default. |
 | **Environment path** | Leave blank to use the bundled pixi environment. Set to the root of a custom conda/pixi environment if you want to use your own. |
@@ -95,10 +96,12 @@ If you already have your own InstanSeg Python installation (pixi, conda, or venv
 
 ## Notes on channel setup
 
-- **Single-channel input, both outputs** (nuclei_ch = cells_ch = 1): the model runs once on channel 1 and returns both nuclei and whole-cell labels from that single stain.
-- **Two-channel input** (nuclei_ch = 1, cells_ch = 2): channel 1 (e.g. DAPI) and channel 2 (e.g. WGA/cell membrane) are stacked and passed together. The `fluorescence_nuclei_and_cells` model is specifically trained for this two-channel mode and will give better cell boundary detection.
-- **Nuclei only** (cells_ch = 0): only nuclei labels are returned.
-- **Cells only** (nuclei_ch = 0): only cell labels are returned.
+The `fluorescence_nuclei_and_cells` model accepts any number of channels. It recognises nuclear and membrane markers by appearance, so **channel order does not matter** — the channel fields only choose which channels go in.
+
+- **All channels**: tick *Use all channels*. Good for multiplexed images; noisy channels can add false edges.
+- **One channel** (nuclei_ch = cells_ch): both outputs from a single stain.
+- **Two channels** (e.g. nuclei_ch = 1, cells_ch = 2): both channels passed together.
+- **Nuclei or cells only**: set the other field to `0`.
 
 ---
 

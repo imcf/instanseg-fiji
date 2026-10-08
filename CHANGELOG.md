@@ -4,6 +4,18 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [0.6.0] - 2026-10-07
+
+### ✨ Added (0.6.0)
+
+- *Use all channels* option to pass every channel to the model
+
+### 📝 Docs (0.6.0)
+
+- README no longer claims the model needs exactly two channels; channel order does not matter
+
+---
+
 ## [0.5.2] - 2026-09-01
 
 ### 🐛 Fixed (0.5.2)

@@ -37,14 +37,16 @@ def _notify(task, message):
         print(message)
 
 
-def _prepare_input(image_path, nuclei_ch, cells_ch, z_slice=0):
+def _prepare_input(image_path, nuclei_ch, cells_ch, z_slice=0, use_all_channels=False):
     """Read image and build the array to pass to InstanSeg.
 
-    - nuclei_ch / cells_ch: 1-based channel indices. 0 means skip that output.
+    - use_all_channels: pass every channel -> (C, H, W). Channel fields are ignored.
+    - nuclei_ch / cells_ch: 1-based channel indices to include. 0 means skip.
     - If both are the same non-zero value: one channel -> (H, W).
-    - If they differ and both non-zero: stack them -> (2, H, W) so InstanSeg can
-      use both (nuclear marker + cell marker) simultaneously.
-    - If only one is non-zero: single channel -> (H, W).
+    - If they differ and both non-zero: stack them -> (2, H, W).
+
+    The fluorescence model is channel-invariant: channel order does not matter,
+    it recognises nuclear vs membrane markers by how they look.
 
     Returns (image_array, pixel_size_um).
     """
@@ -76,6 +78,11 @@ def _prepare_input(image_path, nuclei_ch, cells_ch, z_slice=0):
         return result  # (H, W)
 
     slices = []
+    if use_all_channels:
+        for ch in range(1, n_channels + 1):
+            slices.append(extract(ch))
+        return np.stack(slices, axis=0), pixel_size  # (C, H, W)
+
     if nuclei_ch > 0:
         slices.append(extract(nuclei_ch))
     if cells_ch > 0 and cells_ch != nuclei_ch:
@@ -96,6 +103,7 @@ def run_instanseg(
     z_slice=0,
     device="cpu",
     pixel_size=None,
+    use_all_channels=False,
     task=None,
 ):
     """Run InstanSeg inference on a single image and save label images.
@@ -105,8 +113,16 @@ def run_instanseg(
     reports the exception back to the caller as a task failure automatically.
     """
 
-    if nuclei_channel == 0 and cells_channel == 0:
+    if not use_all_channels and nuclei_channel == 0 and cells_channel == 0:
         raise ValueError("Both nuclei_channel and cells_channel are 0, nothing to do")
+
+    # With all channels, there is no "skip" setting, so both outputs are saved
+    if use_all_channels:
+        want_nuclei = True
+        want_cells = True
+    else:
+        want_nuclei = nuclei_channel > 0
+        want_cells = cells_channel > 0
 
     if device == "cuda" and not torch.cuda.is_available():
         _notify(task, "WARNING: no CUDA GPU available, using CPU instead")
@@ -125,8 +141,10 @@ def run_instanseg(
 
     _notify(task, "Reading image...")
     image_array, metadata_pixel_size = _prepare_input(
-        image, nuclei_channel, cells_channel, z_slice
+        image, nuclei_channel, cells_channel, z_slice, use_all_channels
     )
+    if use_all_channels:
+        _notify(task, "Using all {} channels".format(image_array.shape[0]))
 
     # Pixel size: explicit argument > bioio metadata > warn
     if pixel_size is not None:
@@ -144,12 +162,12 @@ def run_instanseg(
     has_nuclei = n_outputs >= 1 and bool(instances[0, 0].any().item())
     has_cells = n_outputs >= 2 and bool(instances[0, 1].any().item())
 
-    save_nuclei = nuclei_channel > 0 and has_nuclei
-    save_cells = cells_channel > 0 and has_cells
+    save_nuclei = want_nuclei and has_nuclei
+    save_cells = want_cells and has_cells
 
-    if nuclei_channel > 0 and not has_nuclei:
+    if want_nuclei and not has_nuclei:
         _notify(task, "WARNING: no nuclei detected in model output")
-    if cells_channel > 0 and not has_cells:
+    if want_cells and not has_cells:
         _notify(task, "WARNING: no cells detected in model output")
 
     if not save_nuclei and not save_cells:
@@ -206,6 +224,12 @@ def _main():
     )
     parser.add_argument("--z-slice", type=int, default=0, dest="z_slice")
     parser.add_argument("--device", default="cpu")
+    parser.add_argument(
+        "--all-channels",
+        action="store_true",
+        dest="use_all_channels",
+        help="Pass every channel to the model. Ignores --nuclei/--cells-channel.",
+    )
     args = parser.parse_args()
 
     result = run_instanseg(
@@ -217,6 +241,7 @@ def _main():
         z_slice=args.z_slice,
         device=args.device,
         pixel_size=args.pixel_size,
+        use_all_channels=args.use_all_channels,
     )
     print(result)
 
