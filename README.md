@@ -22,7 +22,7 @@ After enabling the MorphoLibJ site, click **Apply changes** and restart Fiji.
 
 ### Appose
 
-The plugin uses [Appose](https://github.com/apposed/appose) to build and run a self-contained Python environment with InstanSeg and all its dependencies. Make sure the [Appose jar](https://mvnrepository.com/artifact/org.apposed/appose) (`appose-*.jar`) is present in Fiji's `jars/` folder.
+The plugin uses [Appose](https://github.com/apposed/appose) to build and run a self-contained Python environment with InstanSeg and all its dependencies. Make sure the [Appose jar](https://mvnrepository.com/artifact/org.apposed/appose) (`appose-*.jar`) is present in Fiji's `jars/` folder. This should ship with the latest installation of Fiji.
 
 ---
 
@@ -89,7 +89,7 @@ If you already have your own InstanSeg Python installation (pixi, conda, or venv
 1. Click **OK**. Progress is shown in the **Fiji Log** window (The *console* has more detailed debug outputs). After inference:
    - The input image is opened in Fiji.
    - Label images (`_nuclei_labels.tif`, `_cell_labels.tif`) are saved to the results folder and opened with a 16-colour LUT.
-   - ROIs are added to the **ROI Manager**, each named after its label value in the corresponding label image (`nucleus_1`, `nucleus_2`, … / `cell_1`, …), so an ROI can be matched back to the object it came from.
+   - ROIs are added to the **ROI Manager**, each named after its label value in the corresponding label image (`nucleus_1`, `nucleus_2`, … / `cell_1`, …).
    - A `<imagename>_RoiSet.zip` is saved to the results folder.
 
 ---
