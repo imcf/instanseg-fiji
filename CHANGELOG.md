@@ -4,6 +4,15 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [0.6.1] - 2026-10-12
+
+**Note**: *No functional code changes in this release.*
+
+### 📝 Docs (0.6.1)
+
+- README clean-up and first release to be archived on Zenodo
+
+
 ## [0.6.0] - 2026-10-07
 
 ### ✨ Added (0.6.0)
